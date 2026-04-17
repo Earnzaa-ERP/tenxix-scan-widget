@@ -4,6 +4,7 @@
 
   var ref = script.getAttribute('data-ref');
   var product = script.getAttribute('data-product') || '';
+  var mode = script.getAttribute('data-mode') || 'both'; // 'floating', 'inline', or 'both'
   var buttonText = script.getAttribute('data-button-text') || 'Analyze Your Skin';
   var position = script.getAttribute('data-button-position') || 'bottom-right';
   var buttonColor = script.getAttribute('data-button-color') || '#e94560';
@@ -21,6 +22,7 @@
   // Inject styles
   var style = document.createElement('style');
   style.textContent = [
+    // Floating button
     '.tenxix-btn{',
       'position:fixed;z-index:999998;',
       'padding:12px 24px;',
@@ -42,6 +44,24 @@
     '.tenxix-btn-bottom-left{bottom:20px;left:20px;}',
     '.tenxix-btn-bottom-center{bottom:20px;left:50%;transform:translateX(-50%);}',
     '.tenxix-btn-bottom-center:hover{transform:translateX(-50%) scale(1.03);}',
+    // Inline trigger button
+    '.tenxix-trigger{',
+      'display:inline-block;',
+      'padding:14px 28px;',
+      'background:' + buttonColor + ';',
+      'color:#fff;',
+      'border:none;border-radius:50px;',
+      'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;',
+      'font-size:15px;font-weight:600;',
+      'cursor:pointer;',
+      'transition:transform 0.2s,box-shadow 0.2s;',
+      'text-align:center;',
+      'line-height:1.4;',
+      'box-shadow:0 2px 12px rgba(0,0,0,0.1);',
+    '}',
+    '.tenxix-trigger:hover{transform:scale(1.03);box-shadow:0 4px 20px rgba(0,0,0,0.15);}',
+    '.tenxix-trigger:active{transform:scale(0.98);}',
+    // Modal overlay
     '.tenxix-overlay{',
       'position:fixed;top:0;left:0;right:0;bottom:0;',
       'z-index:999999;',
@@ -78,13 +98,7 @@
   ].join('');
   document.head.appendChild(style);
 
-  // Create button
-  var btn = document.createElement('button');
-  btn.className = 'tenxix-btn tenxix-btn-' + position;
-  btn.textContent = buttonText;
-  document.body.appendChild(btn);
-
-  // Create overlay + modal
+  // Create overlay + modal (shared by all buttons)
   var overlay = document.createElement('div');
   overlay.className = 'tenxix-overlay';
 
@@ -107,25 +121,56 @@
   document.body.appendChild(overlay);
 
   // Open modal
-  btn.addEventListener('click', function () {
+  function openModal() {
     if (!iframe.src) iframe.src = iframeSrc;
     overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-  });
+  }
 
   // Close modal
-  function close() {
+  function closeModal() {
     overlay.style.display = 'none';
     document.body.style.overflow = '';
   }
 
-  closeBtn.addEventListener('click', close);
+  closeBtn.addEventListener('click', closeModal);
   overlay.addEventListener('click', function (e) {
-    if (e.target === overlay) close();
+    if (e.target === overlay) closeModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && overlay.style.display === 'flex') closeModal();
   });
 
-  // ESC key
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && overlay.style.display === 'flex') close();
-  });
+  // Floating button (unless mode is 'inline' only)
+  if (mode !== 'inline') {
+    var btn = document.createElement('button');
+    btn.className = 'tenxix-btn tenxix-btn-' + position;
+    btn.textContent = buttonText;
+    btn.addEventListener('click', openModal);
+    document.body.appendChild(btn);
+  }
+
+  // Bind all inline .tenxix-trigger buttons on the page
+  function bindInlineTriggers() {
+    var triggers = document.querySelectorAll('.tenxix-trigger');
+    for (var i = 0; i < triggers.length; i++) {
+      if (!triggers[i].hasAttribute('data-tenxix-bound')) {
+        triggers[i].setAttribute('data-tenxix-bound', '1');
+        triggers[i].addEventListener('click', openModal);
+      }
+    }
+  }
+
+  // Bind on load + observe for dynamically added triggers (Elementor, etc.)
+  if (mode !== 'floating') {
+    bindInlineTriggers();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindInlineTriggers);
+    }
+    // Watch for new triggers added to DOM (page builders load content dynamically)
+    if (typeof MutationObserver !== 'undefined') {
+      var observer = new MutationObserver(bindInlineTriggers);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+  }
 })();

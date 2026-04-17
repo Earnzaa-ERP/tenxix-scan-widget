@@ -1,3 +1,19 @@
+export interface ProductIngredient {
+  name: string;
+  explanation: string;
+}
+
+export interface ProductTestimonial {
+  name: string;
+  location: string;
+  text: string;
+  result: string;
+  media_type?: 'before_after' | 'video' | 'none';
+  before_url?: string;
+  after_url?: string;
+  video_url?: string;
+}
+
 export interface ConfigProduct {
   id: string;
   name: string;
@@ -5,6 +21,9 @@ export interface ConfigProduct {
   price: number | null;
   skin_concern_targets: string[];
   redirect_url: string | null;
+  full_description: string | null;
+  ingredients: ProductIngredient[];
+  testimonials: ProductTestimonial[];
 }
 
 export interface WidgetConfig {
@@ -18,6 +37,7 @@ export interface RecommendedProduct {
   name: string;
   price: number | null;
   redirect_url: string | null;
+  why_it_matches: string | null;
 }
 
 export interface ScanResult {

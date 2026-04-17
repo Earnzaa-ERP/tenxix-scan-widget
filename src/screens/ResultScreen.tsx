@@ -1,5 +1,7 @@
-import type { ScanResult } from '../types';
+import { useState } from 'react';
+import type { ScanResult, ConfigProduct, RecommendedProduct } from '../types';
 import { ProductCard } from '../components/ProductCard';
+import { ProductDetailModal } from '../components/ProductDetailModal';
 import { ConcernTag } from '../components/ConcernTag';
 import { ErrorBanner } from '../components/ErrorBanner';
 
@@ -7,11 +9,20 @@ interface ResultScreenProps {
   result: ScanResult | null;
   error: string | null;
   refCode: string;
+  configProducts: ConfigProduct[];
   onScanAgain: () => void;
   onBundleOrder: () => void;
 }
 
-export function ResultScreen({ result, error, refCode, onScanAgain, onBundleOrder }: ResultScreenProps) {
+export function ResultScreen({ result, error, refCode, configProducts, onScanAgain, onBundleOrder }: ResultScreenProps) {
+  const [detailProduct, setDetailProduct] = useState<RecommendedProduct | null>(null);
+
+  // Look up full product details from config by ID
+  function getProductDetail(productId: string | null): ConfigProduct | null {
+    if (!productId) return null;
+    return configProducts.find(p => p.id === productId) || null;
+  }
+
   // Error state
   if (error || !result) {
     const isRateLimit = error?.includes('scan limit');
@@ -59,11 +70,16 @@ export function ResultScreen({ result, error, refCode, onScanAgain, onBundleOrde
       {/* Recommended products */}
       <div className="space-y-2">
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-          {result.recommended_products.length > 1 ? 'Recommended For You' : 'Recommended For You'}
+          Recommended For You
         </h3>
         <div className="space-y-3">
           {result.recommended_products.map((product, i) => (
-            <ProductCard key={product.id ?? i} product={product} refCode={refCode} />
+            <ProductCard
+              key={product.id ?? i}
+              product={product}
+              refCode={refCode}
+              onKnowMore={() => setDetailProduct(product)}
+            />
           ))}
         </div>
       </div>
@@ -85,6 +101,16 @@ export function ResultScreen({ result, error, refCode, onScanAgain, onBundleOrde
       >
         Scan Again
       </button>
+
+      {/* Know More Modal */}
+      {detailProduct && (
+        <ProductDetailModal
+          recommended={detailProduct}
+          detail={getProductDetail(detailProduct.id)}
+          refCode={refCode}
+          onClose={() => setDetailProduct(null)}
+        />
+      )}
     </div>
   );
 }

@@ -110,6 +110,7 @@ export default function App() {
           result={state.result}
           error={state.analyzeError}
           refCode={state.refCode}
+          photoBase64={state.photoBase64}
           configProducts={state.config?.products || []}
           onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
           onBundleOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}

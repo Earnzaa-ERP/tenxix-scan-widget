@@ -9,12 +9,13 @@ interface ResultScreenProps {
   result: ScanResult | null;
   error: string | null;
   refCode: string;
+  photoBase64: string | null;
   configProducts: ConfigProduct[];
   onScanAgain: () => void;
   onBundleOrder: () => void;
 }
 
-export function ResultScreen({ result, error, refCode, configProducts, onScanAgain, onBundleOrder }: ResultScreenProps) {
+export function ResultScreen({ result, error, refCode, photoBase64, configProducts, onScanAgain, onBundleOrder }: ResultScreenProps) {
   const [detailProduct, setDetailProduct] = useState<RecommendedProduct | null>(null);
 
   // Look up full product details from config by ID
@@ -50,12 +51,23 @@ export function ResultScreen({ result, error, refCode, configProducts, onScanAga
   // Success state
   return (
     <div className="flex-1 flex flex-col px-5 py-6 gap-5 overflow-y-auto">
-      {/* Headline */}
-      <div className="space-y-3">
-        <h2 className="text-xl font-bold text-[var(--color-primary)] leading-tight">
-          {result.headline}
-        </h2>
-        <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
+      {/* Scan photo + headline */}
+      <div className="flex gap-4 items-start">
+        {photoBase64 && (
+          <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-accent)]/20">
+            <img
+              src={`data:image/jpeg;base64,${photoBase64}`}
+              alt="Your skin scan"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        <div className="space-y-2 flex-1 min-w-0">
+          <h2 className="text-lg font-bold text-[var(--color-primary)] leading-tight">
+            {result.headline}
+          </h2>
+          <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
+        </div>
       </div>
 
       {/* Skin concerns */}

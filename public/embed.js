@@ -150,13 +150,19 @@
     document.body.appendChild(btn);
   }
 
-  // Bind all inline .tenxix-trigger buttons on the page
+  // Bind all inline triggers on the page:
+  // 1. Elements with class .tenxix-trigger
+  // 2. Any link/button with href="#tenxix-scan" (works with Elementor buttons)
   function bindInlineTriggers() {
-    var triggers = document.querySelectorAll('.tenxix-trigger');
+    var selectors = '.tenxix-trigger, [href="#tenxix-scan"]';
+    var triggers = document.querySelectorAll(selectors);
     for (var i = 0; i < triggers.length; i++) {
       if (!triggers[i].hasAttribute('data-tenxix-bound')) {
         triggers[i].setAttribute('data-tenxix-bound', '1');
-        triggers[i].addEventListener('click', openModal);
+        triggers[i].addEventListener('click', function (e) {
+          e.preventDefault();
+          openModal();
+        });
       }
     }
   }

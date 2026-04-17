@@ -28,7 +28,28 @@ export interface ScanResult {
   recommended_products: RecommendedProduct[];
 }
 
-export type Screen = 'intro' | 'capture' | 'analyzing' | 'result';
+export type Screen = 'intro' | 'capture' | 'analyzing' | 'result' | 'bundle_order' | 'order_success';
+
+export interface BundleOrderPayload {
+  ref_code: string;
+  brand_id: string;
+  product_ids: string[];
+  full_name: string;
+  phone: string;
+  alt_phone?: string;
+  state: string;
+  city?: string;
+  address?: string;
+  landmark?: string;
+  address_type?: 'home' | 'office';
+  session_id?: string;
+  device_type?: string;
+}
+
+export interface BundleOrderResponse {
+  success: boolean;
+  order_ref: string;
+}
 
 export interface AppState {
   screen: Screen;
@@ -40,6 +61,8 @@ export interface AppState {
   photoBase64: string | null;
   result: ScanResult | null;
   analyzeError: string | null;
+  orderRef: string | null;
+  orderError: string | null;
   sessionId: string;
   deviceType: string;
 }
@@ -52,4 +75,8 @@ export type AppAction =
   | { type: 'PHOTO_READY'; photoBase64: string }
   | { type: 'ANALYZE_SUCCESS'; result: ScanResult }
   | { type: 'ANALYZE_ERROR'; error: string }
-  | { type: 'SCAN_AGAIN' };
+  | { type: 'SCAN_AGAIN' }
+  | { type: 'START_BUNDLE_ORDER' }
+  | { type: 'ORDER_SUCCESS'; orderRef: string }
+  | { type: 'ORDER_ERROR'; error: string }
+  | { type: 'BACK_TO_RESULT' };

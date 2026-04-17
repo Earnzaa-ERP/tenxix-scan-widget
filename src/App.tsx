@@ -7,6 +7,8 @@ import { IntroScreen } from './screens/IntroScreen';
 import { CaptureScreen } from './screens/CaptureScreen';
 import { AnalyzingScreen } from './screens/AnalyzingScreen';
 import { ResultScreen } from './screens/ResultScreen';
+import { BundleOrderScreen } from './screens/BundleOrderScreen';
+import { OrderSuccessScreen } from './screens/OrderSuccessScreen';
 
 const params = new URLSearchParams(window.location.search);
 const refCode = params.get('ref');
@@ -22,6 +24,8 @@ const initialState: AppState = {
   photoBase64: null,
   result: null,
   analyzeError: null,
+  orderRef: null,
+  orderError: null,
   sessionId: generateSessionId(),
   deviceType: detectDeviceType(),
 };
@@ -45,7 +49,15 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'ANALYZE_ERROR':
       return state.screen === 'analyzing' ? { ...state, screen: 'result', analyzeError: action.error } : state;
     case 'SCAN_AGAIN':
-      return { ...state, screen: 'capture', photoBase64: null, result: null, analyzeError: null };
+      return { ...state, screen: 'capture', photoBase64: null, result: null, analyzeError: null, orderRef: null, orderError: null };
+    case 'START_BUNDLE_ORDER':
+      return state.screen === 'result' ? { ...state, screen: 'bundle_order', orderError: null } : state;
+    case 'ORDER_SUCCESS':
+      return state.screen === 'bundle_order' ? { ...state, screen: 'order_success', orderRef: action.orderRef } : state;
+    case 'ORDER_ERROR':
+      return state.screen === 'bundle_order' ? { ...state, orderError: action.error } : state;
+    case 'BACK_TO_RESULT':
+      return state.screen === 'bundle_order' ? { ...state, screen: 'result', orderError: null } : state;
     default:
       return state;
   }
@@ -98,6 +110,26 @@ export default function App() {
           result={state.result}
           error={state.analyzeError}
           refCode={state.refCode}
+          onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
+          onBundleOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
+        />
+      )}
+      {state.screen === 'bundle_order' && state.result && state.config?.brand && state.refCode && (
+        <BundleOrderScreen
+          products={state.result.recommended_products}
+          brandId={state.config.brand.id}
+          refCode={state.refCode}
+          sessionId={state.sessionId}
+          deviceType={state.deviceType}
+          error={state.orderError}
+          onSuccess={(orderRef) => dispatch({ type: 'ORDER_SUCCESS', orderRef })}
+          onError={(error) => dispatch({ type: 'ORDER_ERROR', error })}
+          onBack={() => dispatch({ type: 'BACK_TO_RESULT' })}
+        />
+      )}
+      {state.screen === 'order_success' && (
+        <OrderSuccessScreen
+          orderRef={state.orderRef}
           onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
         />
       )}

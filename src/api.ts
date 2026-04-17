@@ -1,5 +1,5 @@
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, ANALYZE_TIMEOUT_MS } from './constants';
-import type { WidgetConfig, ScanResult } from './types';
+import type { WidgetConfig, ScanResult, BundleOrderPayload, BundleOrderResponse } from './types';
 
 const headers = {
   apikey: SUPABASE_ANON_KEY,
@@ -80,4 +80,35 @@ export async function analyzeSkinScan(params: {
 
   const data = await res.json();
   return data as ScanResult;
+}
+
+export async function submitBundleOrder(payload: BundleOrderPayload): Promise<BundleOrderResponse> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${FUNCTIONS_BASE}/submit-scan-order`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError('Request timed out. Please try again.', 'timeout');
+    }
+    throw new ApiError('Could not connect. Check your internet and try again.', 'network');
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(data?.error || 'Could not place your order. Please try again.', 'unknown');
+  }
+
+  const data = await res.json();
+  return data as BundleOrderResponse;
 }

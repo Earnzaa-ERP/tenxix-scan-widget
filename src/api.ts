@@ -37,7 +37,7 @@ export async function fetchWidgetConfig(refCode: string): Promise<WidgetConfig> 
   }
 
   const data = await res.json();
-  return data as WidgetConfig;
+  return (data.config ?? data) as WidgetConfig;
 }
 
 export async function analyzeSkinScan(params: {

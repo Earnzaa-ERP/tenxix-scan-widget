@@ -11,7 +11,7 @@ import { BundleOrderScreen } from './screens/BundleOrderScreen';
 import { OrderSuccessScreen } from './screens/OrderSuccessScreen';
 
 const params = new URLSearchParams(window.location.search);
-const refCode = params.get('ref');
+const refCode = params.get('ref') || 'direct';
 const productName = params.get('product');
 
 const initialState: AppState = {
@@ -19,8 +19,8 @@ const initialState: AppState = {
   refCode,
   productName,
   config: null,
-  configLoading: !!refCode,
-  configError: refCode ? null : 'This scan link is invalid. Please use the link provided by your skincare consultant.',
+  configLoading: true,
+  configError: null,
   photoBase64: null,
   result: null,
   analyzeError: null,

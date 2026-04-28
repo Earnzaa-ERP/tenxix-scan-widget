@@ -97,12 +97,14 @@ export function ResultScreen({ result, error, refCode, photoBase64, configProduc
       </div>
 
       {/* Bundle CTA */}
-      {result.recommended_products.length > 1 && (
+      {result.recommended_products.length >= 1 && (
         <button
           onClick={onBundleOrder}
           className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
         >
-          Get the Complete Package &rarr;
+          {result.recommended_products.length === 1
+            ? 'Order This Product →'
+            : 'Get the Complete Package →'}
         </button>
       )}
 

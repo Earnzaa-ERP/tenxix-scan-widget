@@ -9,11 +9,15 @@ interface CameraViewProps {
 
 // ICAO/ISO-style framing targets (normalized): the face should fill a good
 // share of the frame and be centered in the oval before we auto-capture.
-const MIN_FACE_H = 0.4; // face height / frame height — "move closer" below this
-const MAX_FACE_H = 0.86; // "move back" above this
-const EDGE_MARGIN = 0.04; // face this close to top/bottom edge = cut off
-const CENTER_TOL_X = 0.18;
-const CENTER_TOL_Y = 0.2;
+// Skin capture wants the face CLOSE and filling the frame for maximum detail —
+// not a passport-style whole-head shot. So accept a large, face-filling crop;
+// only nudge "move closer" when the face is genuinely small, or "move back"
+// when it overflows the frame. The top of the head/hair may sit outside the
+// oval — that's fine, we care about facial skin.
+const MIN_FACE_H = 0.45; // face height / frame height — "move closer" below this
+const MAX_FACE_H = 0.98; // "move back" only when the face overflows
+const CENTER_TOL_X = 0.22;
+const CENTER_TOL_Y = 0.24;
 const OVAL_CENTER_Y = 0.46; // oval sits slightly above center
 const STABLE_TICKS = 2; // consecutive good frames (~700ms) before auto-firing
 
@@ -51,15 +55,12 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
         return;
       }
       const sizeH = box.height / fh;
-      const top = box.y / fh;
-      const bottom = (box.y + box.height) / fh;
       const cx = (box.x + box.width / 2) / fw;
       const cy = (box.y + box.height / 2) / fh;
 
       let problem: string | null = null;
       if (sizeH < MIN_FACE_H) problem = 'Move a little closer';
-      else if (sizeH > MAX_FACE_H || top < EDGE_MARGIN || bottom > 1 - EDGE_MARGIN)
-        problem = 'Move back so your whole face fits';
+      else if (sizeH > MAX_FACE_H) problem = 'Move back a little';
       else if (Math.abs(cx - 0.5) > CENTER_TOL_X || Math.abs(cy - OVAL_CENTER_Y) > CENTER_TOL_Y)
         problem = 'Center your face in the oval';
 
@@ -105,9 +106,9 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
           the face is well framed and about to auto-capture. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center">
         <div
-          className="mt-[14%] rounded-[50%] transition-colors duration-200"
+          className="mt-[8%] rounded-[50%] transition-colors duration-200"
           style={{
-            width: '64%',
+            width: '78%',
             aspectRatio: '3 / 4',
             // White = align your face; green = locked & about to capture.
             border: `${framed ? 4 : 2}px solid ${framed ? '#22c55e' : 'rgba(255,255,255,0.95)'}`,

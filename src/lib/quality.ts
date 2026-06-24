@@ -202,29 +202,32 @@ export async function assessFaceRegion(
   return { exposure, dynamicRange, uniformity, noise, sharpness, poor };
 }
 
-// Crop a JPEG to the face box (square, centered, with margin for context) so
-// the analyzed image is the MAIN FACE filling the frame, not the room.
+// Crop a JPEG to the face with generous, asymmetric margins so the FULL face —
+// including the forehead/hairline (prime skin area) — is kept, not clipped.
+// The detector box starts near the eyebrows, so we extend extra ABOVE it.
 // Standard: ICAO 9303 / ISO-IEC 19794-5 face-geometry framing. Returns JPEG
 // base64 (no data: prefix).
 export async function cropFace(
   base64: string,
   box: { x: number; y: number; width: number; height: number },
-  margin = 0.35,
 ): Promise<string> {
+  const MARGIN_X = 0.3;
+  const MARGIN_TOP = 0.6; // extra headroom so the forehead isn't cut
+  const MARGIN_BOTTOM = 0.35;
+
   const img = await loadImage(base64);
-  const size = Math.max(box.width, box.height) * (1 + margin);
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  const x = Math.max(0, Math.min(img.naturalWidth - 1, cx - size / 2));
-  const y = Math.max(0, Math.min(img.naturalHeight - 1, cy - size / 2));
-  const w = Math.min(img.naturalWidth - x, size);
-  const h = Math.min(img.naturalHeight - y, size);
+  const left = Math.max(0, box.x - box.width * MARGIN_X);
+  const right = Math.min(img.naturalWidth, box.x + box.width * (1 + MARGIN_X));
+  const top = Math.max(0, box.y - box.height * MARGIN_TOP);
+  const bottom = Math.min(img.naturalHeight, box.y + box.height * (1 + MARGIN_BOTTOM));
+  const w = right - left;
+  const h = bottom - top;
   if (w < 2 || h < 2) return base64;
 
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(w);
   canvas.height = Math.round(h);
   const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+  ctx.drawImage(img, left, top, w, h, 0, 0, w, h);
   return canvas.toDataURL('image/jpeg', 0.92).replace(/^data:image\/jpeg;base64,/, '');
 }

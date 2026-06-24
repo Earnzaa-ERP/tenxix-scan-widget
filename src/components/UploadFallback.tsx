@@ -28,7 +28,10 @@ export function UploadFallback({ onFile }: UploadFallbackProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
         </svg>
       </div>
-      <p className="text-gray-500 text-sm">Camera not available. Upload a photo instead.</p>
+      <p className="text-gray-600 text-sm font-medium">Upload a clear, well-lit photo of your face</p>
+      <p className="text-gray-400 text-xs max-w-[280px]">
+        A sharp photo from your phone’s camera shows your skin best. Face a window or light, no filters.
+      </p>
       <button
         onClick={() => inputRef.current?.click()}
         className="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg font-medium text-sm active:scale-[0.98] transition-transform"

@@ -218,16 +218,24 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
         {/* Screen-flash: full-white overlay lights the face for the capture. */}
         {flashing && <div className="fixed inset-0 z-[60] bg-white" aria-hidden="true" />}
         <CameraView stream={stream} onCapture={runCapture} videoRef={videoRef} />
-        <button
-          onClick={() => {
-            if (stream) stopCamera(stream);
-            setStream(null);
-            setMode('upload');
-          }}
-          className="py-2 text-center text-gray-500 text-xs underline"
-        >
-          Upload a photo instead
-        </button>
+        <div className="p-4 space-y-1.5">
+          <button
+            onClick={() => {
+              if (stream) stopCamera(stream);
+              setStream(null);
+              setMode('upload');
+            }}
+            className="w-full py-3 flex items-center justify-center gap-2 border-2 border-[var(--color-primary)] text-[var(--color-primary)] rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5" />
+            </svg>
+            Upload a clear photo
+          </button>
+          <p className="text-center text-gray-400 text-xs">
+            Best results: a sharp, well-lit photo from your gallery
+          </p>
+        </div>
       </div>
     );
   }

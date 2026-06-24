@@ -76,6 +76,7 @@ export interface BundleOrderPayload {
   ref_code: string;
   brand_id: string;
   product_ids: string[];
+  items?: { product_id: string; quantity: number }[];
   full_name: string;
   phone: string;
   alt_phone?: string;
@@ -101,6 +102,7 @@ export interface AppState {
   configLoading: boolean;
   configError: string | null;
   photoBase64: string | null;
+  sideImagesBase64: { left?: string; right?: string } | null;
   result: ScanResult | null;
   analyzeError: string | null;
   orderRef: string | null;
@@ -114,7 +116,7 @@ export type AppAction =
   | { type: 'CONFIG_LOADED'; config: WidgetConfig }
   | { type: 'CONFIG_ERROR'; error: string }
   | { type: 'START_SCAN' }
-  | { type: 'PHOTO_READY'; photoBase64: string }
+  | { type: 'PHOTO_READY'; photoBase64: string; sideImages?: { left?: string; right?: string } }
   | { type: 'ANALYZE_SUCCESS'; result: ScanResult }
   | { type: 'ANALYZE_ERROR'; error: string }
   | { type: 'SCAN_AGAIN' }

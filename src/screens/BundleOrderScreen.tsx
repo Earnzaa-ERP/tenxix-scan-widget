@@ -39,9 +39,20 @@ export function BundleOrderScreen({
     address_type: 'home' as 'home' | 'office',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [quantities, setQuantities] = useState<Record<string, number>>(() =>
+    Object.fromEntries(products.filter((p) => p.id).map((p) => [p.id as string, 1])),
+  );
 
-  const total = products.reduce((sum, p) => sum + (p.price ?? 0), 0);
-  const productIds = products.map((p) => p.id).filter(Boolean) as string[];
+  const qtyOf = (id: string) => quantities[id] ?? 1;
+  const total = products.reduce((sum, p) => sum + (p.price ?? 0) * (p.id ? qtyOf(p.id) : 1), 0);
+  const totalUnits = products.reduce((sum, p) => sum + (p.id ? qtyOf(p.id) : 1), 0);
+  const items = products
+    .filter((p) => p.id)
+    .map((p) => ({ product_id: p.id as string, quantity: qtyOf(p.id as string) }));
+
+  function setQty(id: string, delta: number) {
+    setQuantities((q) => ({ ...q, [id]: Math.max(1, Math.min(10, (q[id] ?? 1) + delta)) }));
+  }
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -60,7 +71,8 @@ export function BundleOrderScreen({
       const res = await submitBundleOrder({
         ref_code: refCode,
         brand_id: brandId,
-        product_ids: productIds,
+        product_ids: items.map((it) => it.product_id),
+        items,
         full_name: form.full_name.trim(),
         phone: form.phone.trim(),
         alt_phone: form.alt_phone.trim() || undefined,
@@ -99,20 +111,49 @@ export function BundleOrderScreen({
         {error && <ErrorBanner message={error} />}
 
         {/* Order summary */}
-        <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+        <div className="bg-gray-50 rounded-xl p-4 space-y-3">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Your Package</h3>
-          {products.map((p, i) => (
-            <div key={p.id ?? i} className="flex justify-between items-center text-sm">
-              <span className="text-gray-700">{p.name}</span>
-              <span className="font-medium text-[var(--color-primary)]">
-                {p.price != null ? formatNaira(p.price) : '—'}
-              </span>
-            </div>
-          ))}
+          {products.map((p, i) => {
+            const qty = p.id ? qtyOf(p.id) : 1;
+            return (
+              <div key={p.id ?? i} className="flex items-center gap-2 text-sm">
+                <span className="text-gray-700 flex-1 min-w-0">{p.name}</span>
+                {p.id && (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setQty(p.id as string, -1)}
+                      disabled={qty <= 1}
+                      aria-label="Decrease quantity"
+                      className="w-6 h-6 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center leading-none disabled:opacity-30"
+                    >
+                      −
+                    </button>
+                    <span className="w-4 text-center font-medium text-gray-800">{qty}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQty(p.id as string, 1)}
+                      disabled={qty >= 10}
+                      aria-label="Increase quantity"
+                      className="w-6 h-6 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center leading-none disabled:opacity-30"
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
+                <span className="font-medium text-[var(--color-primary)] w-16 text-right shrink-0">
+                  {p.price != null ? formatNaira(p.price * qty) : '—'}
+                </span>
+              </div>
+            );
+          })}
           <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
-            <span className="font-semibold text-sm text-[var(--color-primary)]">Total</span>
+            <span className="font-semibold text-sm text-[var(--color-primary)]">
+              Total · {totalUnits} {totalUnits === 1 ? 'item' : 'items'}
+            </span>
             <span className="font-bold text-base text-[var(--color-primary)]">{formatNaira(total)}</span>
           </div>
+          <p className="text-[11px] text-gray-400">Pay on delivery · we'll call to confirm before dispatch</p>
         </div>
 
         {/* Customer details */}

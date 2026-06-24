@@ -25,6 +25,7 @@ const initialState: AppState = {
   configLoading: true,
   configError: null,
   photoBase64: null,
+  sideImagesBase64: null,
   result: null,
   analyzeError: null,
   orderRef: null,
@@ -45,14 +46,14 @@ function reducer(state: AppState, action: AppAction): AppState {
       return state.screen === 'intro' ? { ...state, screen: 'capture' } : state;
     case 'PHOTO_READY':
       return state.screen === 'capture'
-        ? { ...state, screen: 'analyzing', photoBase64: action.photoBase64, result: null, analyzeError: null }
+        ? { ...state, screen: 'analyzing', photoBase64: action.photoBase64, sideImagesBase64: action.sideImages ?? null, result: null, analyzeError: null }
         : state;
     case 'ANALYZE_SUCCESS':
       return state.screen === 'analyzing' ? { ...state, screen: 'result', result: action.result } : state;
     case 'ANALYZE_ERROR':
       return state.screen === 'analyzing' ? { ...state, screen: 'result', analyzeError: action.error } : state;
     case 'SCAN_AGAIN':
-      return { ...state, screen: 'capture', photoBase64: null, result: null, analyzeError: null, orderRef: null, orderError: null };
+      return { ...state, screen: 'capture', photoBase64: null, sideImagesBase64: null, result: null, analyzeError: null, orderRef: null, orderError: null };
     case 'VIEW_ROUTINE':
       return state.screen === 'result' ? { ...state, screen: 'routine' } : state;
     case 'START_BUNDLE_ORDER':
@@ -114,12 +115,15 @@ function MainApp() {
         />
       )}
       {state.screen === 'capture' && (
-        <CaptureScreen onPhotoReady={(b64) => dispatch({ type: 'PHOTO_READY', photoBase64: b64 })} />
+        <CaptureScreen
+          onPhotoReady={(b64, sides) => dispatch({ type: 'PHOTO_READY', photoBase64: b64, sideImages: sides })}
+        />
       )}
       {state.screen === 'analyzing' && state.photoBase64 && state.refCode && (
         <AnalyzingScreen
           refCode={state.refCode}
           photoBase64={state.photoBase64}
+          sideImages={state.sideImagesBase64 ?? undefined}
           productName={state.productName}
           sessionId={state.sessionId}
           deviceType={state.deviceType}

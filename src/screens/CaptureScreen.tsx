@@ -6,7 +6,7 @@ import { analyzeBrightness, assessFaceRegion, cropFace } from '../lib/quality';
 import { detectFace, prewarmFaceDetector } from '../lib/faceDetect';
 
 interface CaptureScreenProps {
-  onPhotoReady: (base64: string) => void;
+  onPhotoReady: (base64: string, sideImages?: { left?: string; right?: string }) => void;
 }
 
 // ?qa shows the measured quality numbers on the preview, to calibrate thresholds.
@@ -34,9 +34,12 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   const [qaText, setQaText] = useState('');
   const [flashing, setFlashing] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
+  const [sides, setSides] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
   const capturingRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sideInputRef = useRef<HTMLInputElement>(null);
+  const sideSlotRef = useRef<'left' | 'right'>('left');
 
   // Warm the face model up front (used by both upload-crop and the live scanner).
   useEffect(() => {
@@ -141,12 +144,33 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     }
   }
 
+  // --- Optional side angles (3-way scan) ---
+  function addSide(slot: 'left' | 'right') {
+    sideSlotRef.current = slot;
+    sideInputRef.current?.click();
+  }
+
+  function handleSideFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const slot = sideSlotRef.current;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).replace(/^data:image\/[^;]+;base64,/, '');
+      const cropped = await cropToFace(base64); // face-crop the side too; falls back to full
+      setSides((s) => ({ ...s, [slot]: cropped }));
+    };
+    reader.readAsDataURL(file);
+  }
+
   function handleRetake() {
     setPreview(null);
     setTooDark(false);
     setNoFace(false);
     setPoorQuality(false);
     setQaText('');
+    setSides({ left: null, right: null });
   }
 
   async function handleAnalyze() {
@@ -155,7 +179,10 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     try {
       const raw = preview.replace(/^data:image\/[^;]+;base64,/, '');
       const compressed = await compressPhoto(raw);
-      onPhotoReady(compressed);
+      const sideImages: { left?: string; right?: string } = {};
+      if (sides.left) sideImages.left = await compressPhoto(sides.left);
+      if (sides.right) sideImages.right = await compressPhoto(sides.right);
+      onPhotoReady(compressed, sides.left || sides.right ? sideImages : undefined);
     } finally {
       setCompressing(false);
     }
@@ -184,6 +211,48 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
             </div>
           )}
           {showQa && qaText && <p className="mx-4 mt-2 text-[10px] font-mono text-gray-400">{qaText}</p>}
+
+          {/* Optional side angles (3-way scan) — only offered once the front shot passes */}
+          {!tooDark && !noFace && !poorQuality && !validating && (
+            <div className="px-4 pt-3">
+              <p className="text-xs text-gray-500 mb-2">
+                Add side angles for a more complete read <span className="text-gray-400">· optional</span>
+              </p>
+              <div className="flex gap-3">
+                {(['left', 'right'] as const).map((slot) => (
+                  <div key={slot} className="flex-1">
+                    {sides[slot] ? (
+                      <div className="relative">
+                        <img
+                          src={`data:image/jpeg;base64,${sides[slot]}`}
+                          alt={`${slot} side`}
+                          className="w-full h-20 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSides((s) => ({ ...s, [slot]: null }))}
+                          aria-label={`Remove ${slot} side photo`}
+                          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-gray-700 text-white text-xs flex items-center justify-center"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => addSide(slot)}
+                        className="w-full h-20 rounded-lg border-2 border-dashed border-gray-300 text-gray-500 text-xs flex flex-col items-center justify-center gap-0.5 active:scale-[0.98] transition-transform"
+                      >
+                        <span className="text-lg leading-none">＋</span>
+                        {slot === 'left' ? 'Left side' : 'Right side'}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 p-4">
             <button
               onClick={handleRetake}
@@ -291,6 +360,14 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
         accept="image/*"
         capture="user"
         onChange={handleFileChange}
+        className="hidden"
+      />
+      <input
+        ref={sideInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        onChange={handleSideFile}
         className="hidden"
       />
       {renderInner()}

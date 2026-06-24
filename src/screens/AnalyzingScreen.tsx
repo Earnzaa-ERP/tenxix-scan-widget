@@ -6,6 +6,7 @@ import type { ScanResult } from '../types';
 interface AnalyzingScreenProps {
   refCode: string;
   photoBase64: string;
+  sideImages?: { left?: string; right?: string };
   productName: string | null;
   sessionId: string;
   deviceType: string;
@@ -16,6 +17,7 @@ interface AnalyzingScreenProps {
 export function AnalyzingScreen({
   refCode,
   photoBase64,
+  sideImages,
   productName,
   sessionId,
   deviceType,
@@ -31,6 +33,7 @@ export function AnalyzingScreen({
     analyzeSkinScan({
       ref_code: refCode,
       photo_base64: photoBase64,
+      side_images: sideImages,
       product_name: productName ?? undefined,
       session_id: sessionId,
       device_type: deviceType,
@@ -41,7 +44,7 @@ export function AnalyzingScreen({
           err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
         onError(message);
       });
-  }, [refCode, photoBase64, productName, sessionId, deviceType, onResult, onError]);
+  }, [refCode, photoBase64, sideImages, productName, sessionId, deviceType, onResult, onError]);
 
   return <AnalyzingAnimation photoBase64={photoBase64} />;
 }

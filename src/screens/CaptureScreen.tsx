@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { CameraView } from '../components/CameraView';
-import { UploadFallback } from '../components/UploadFallback';
 import { requestCamera, captureStill, stopCamera } from '../lib/camera';
 import { compressPhoto } from '../lib/compress';
 import { analyzeBrightness, assessFaceRegion, cropFace } from '../lib/quality';
@@ -21,9 +20,11 @@ async function cropToFace(fullBase64: string): Promise<string> {
   return face.box ? cropFace(fullBase64, face.box) : fullBase64;
 }
 
+type Mode = 'choose' | 'loading' | 'camera';
+
 export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [mode, setMode] = useState<'loading' | 'camera' | 'upload'>('loading');
+  const [mode, setMode] = useState<Mode>('choose');
   const [preview, setPreview] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
   const [tooDark, setTooDark] = useState(false);
@@ -32,8 +33,21 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   const [validating, setValidating] = useState(false);
   const [qaText, setQaText] = useState('');
   const [flashing, setFlashing] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
   const capturingRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Warm the face model up front (used by both upload-crop and the live scanner).
+  useEffect(() => {
+    prewarmFaceDetector();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (stream) stopCamera(stream);
+    };
+  }, [stream]);
 
   // Gate junk frames before they reach the AI (it would otherwise return a
   // confident, bogus result). In order: blank/black frame -> no face ->
@@ -69,40 +83,43 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     }
   }
 
-  useEffect(() => {
-    let cancelled = false;
-
-    prewarmFaceDetector(); // start loading the model while the user frames the shot
-
-    requestCamera()
-      .then((s) => {
-        if (cancelled) {
-          stopCamera(s);
-          return;
-        }
-        setStream(s);
-        setMode('camera');
-      })
-      .catch(() => {
-        if (!cancelled) setMode('upload');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (stream) stopCamera(stream);
-    };
-  }, [stream]);
-
   // Crop to the face, show it, and run the quality gates.
   async function prepareAndPreview(fullBase64: string) {
     const cropped = await cropToFace(fullBase64);
     setPreview(`data:image/jpeg;base64,${cropped}`);
     checkPhoto(cropped);
+  }
+
+  // --- Upload path (recommended): the phone's native camera / gallery ---
+  function openNativeUpload() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).replace(/^data:image\/[^;]+;base64,/, '');
+      void prepareAndPreview(base64);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // --- Live scanner path (secondary) ---
+  function startLiveScanner() {
+    setLiveError(null);
+    setMode('loading');
+    requestCamera()
+      .then((s) => {
+        setStream(s);
+        setMode('camera');
+      })
+      .catch(() => {
+        setMode('choose');
+        setLiveError('Camera access was blocked. Upload a photo instead.');
+      });
   }
 
   // Capture sequence: screen-flash to light the face (front cameras have no
@@ -113,7 +130,7 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     capturingRef.current = true;
     try {
       setFlashing(true);
-      await delay(380); // give the front camera time to re-expose to the bright screen
+      await delay(380);
       const full = await captureStill(videoRef.current, stream);
       setFlashing(false);
       await prepareAndPreview(full);
@@ -122,10 +139,6 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     } finally {
       capturingRef.current = false;
     }
-  }
-
-  function handleUploadFile(base64: string) {
-    void prepareAndPreview(base64);
   }
 
   function handleRetake() {
@@ -148,98 +161,139 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     }
   }
 
-  // Preview state — photo taken, show confirm/retake
-  if (preview) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <div className="flex-1 bg-black flex items-center justify-center">
-          <img src={preview} alt="Your photo" className="max-h-full max-w-full object-contain" />
-        </div>
-        {(tooDark || noFace || poorQuality) && (
-          <div className="mx-4 mt-3 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
-            <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008M10.34 3.94l-7.4 12.82A1.5 1.5 0 004.24 19h15.52a1.5 1.5 0 001.3-2.24L13.66 3.94a1.5 1.5 0 00-2.6 0z" />
-            </svg>
-            <p className="text-xs text-amber-800 leading-relaxed">
-              {tooDark
-                ? "It's too dark to read your skin. Move to a well-lit area facing a light, then retake."
-                : noFace
-                  ? 'We couldn’t find a face in this photo. Center your face in the frame and retake.'
-                  : 'Your face is too dimly lit or blurry for an accurate read. Face a light, hold steady, and retake.'}
-            </p>
+  function renderInner() {
+    // Preview — photo taken, confirm/retake
+    if (preview) {
+      return (
+        <div className="flex-1 flex flex-col">
+          <div className="flex-1 bg-black flex items-center justify-center">
+            <img src={preview} alt="Your photo" className="max-h-full max-w-full object-contain" />
           </div>
-        )}
-        {showQa && qaText && (
-          <p className="mx-4 mt-2 text-[10px] font-mono text-gray-400">{qaText}</p>
-        )}
-        <div className="flex gap-3 p-4">
-          <button
-            onClick={handleRetake}
-            disabled={compressing}
-            className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium text-sm disabled:opacity-40"
-          >
-            Retake
-          </button>
-          <button
-            onClick={handleAnalyze}
-            disabled={compressing || validating || tooDark || noFace || poorQuality}
-            className="flex-1 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
-          >
-            {compressing
-              ? 'Preparing...'
-              : validating
-                ? 'Checking photo…'
-                : tooDark
-                  ? 'Too Dark — Retake'
+          {(tooDark || noFace || poorQuality) && (
+            <div className="mx-4 mt-3 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
+              <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008M10.34 3.94l-7.4 12.82A1.5 1.5 0 004.24 19h15.52a1.5 1.5 0 001.3-2.24L13.66 3.94a1.5 1.5 0 00-2.6 0z" />
+              </svg>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                {tooDark
+                  ? "It's too dark to read your skin. Move to a well-lit area facing a light, then retake."
                   : noFace
-                    ? 'No Face — Retake'
-                    : poorQuality
-                      ? 'Poor Quality — Retake'
-                      : 'Analyze My Skin'}
-          </button>
+                    ? 'We couldn’t find a face in this photo. Center your face in the frame and retake.'
+                    : 'Your face is too dimly lit or blurry for an accurate read. Face a light, hold steady, and retake.'}
+              </p>
+            </div>
+          )}
+          {showQa && qaText && <p className="mx-4 mt-2 text-[10px] font-mono text-gray-400">{qaText}</p>}
+          <div className="flex gap-3 p-4">
+            <button
+              onClick={handleRetake}
+              disabled={compressing}
+              className="flex-1 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium text-sm disabled:opacity-40"
+            >
+              Retake
+            </button>
+            <button
+              onClick={handleAnalyze}
+              disabled={compressing || validating || tooDark || noFace || poorQuality}
+              className="flex-1 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
+            >
+              {compressing
+                ? 'Preparing...'
+                : validating
+                  ? 'Checking photo…'
+                  : tooDark
+                    ? 'Too Dark — Retake'
+                    : noFace
+                      ? 'No Face — Retake'
+                      : poorQuality
+                        ? 'Poor Quality — Retake'
+                        : 'Analyze My Skin'}
+            </button>
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Loading camera
-  if (mode === 'loading') {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-gray-400 text-sm">Accessing camera...</p>
-      </div>
-    );
-  }
+    if (mode === 'loading') {
+      return (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-400 text-sm">Accessing camera...</p>
+        </div>
+      );
+    }
 
-  // Camera mode
-  if (mode === 'camera' && stream) {
-    return (
-      <div className="flex-1 flex flex-col">
-        {/* Screen-flash: full-white overlay lights the face for the capture. */}
-        {flashing && <div className="fixed inset-0 z-[60] bg-white" aria-hidden="true" />}
-        <CameraView stream={stream} onCapture={runCapture} videoRef={videoRef} />
-        <div className="p-4 space-y-1.5">
+    if (mode === 'camera' && stream) {
+      return (
+        <div className="flex-1 flex flex-col">
+          {flashing && <div className="fixed inset-0 z-[60] bg-white" aria-hidden="true" />}
+          <CameraView stream={stream} onCapture={runCapture} videoRef={videoRef} />
           <button
             onClick={() => {
               if (stream) stopCamera(stream);
               setStream(null);
-              setMode('upload');
+              setMode('choose');
             }}
-            className="w-full py-3 flex items-center justify-center gap-2 border-2 border-[var(--color-primary)] text-[var(--color-primary)] rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform"
+            className="py-2.5 text-center text-[var(--color-primary)] text-sm font-medium"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 7.5L12 3m0 0L7.5 7.5M12 3v13.5" />
-            </svg>
-            Upload a clear photo
+            ← Use a photo instead (recommended)
           </button>
-          <p className="text-center text-gray-400 text-xs">
-            Best results: a sharp, well-lit photo from your gallery
+        </div>
+      );
+    }
+
+    // Default: chooser — Upload (recommended) vs live scanner
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-5">
+        <div className="w-20 h-20 rounded-full bg-[var(--color-primary)]/10 flex items-center justify-center">
+          <svg className="w-10 h-10 text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z" />
+          </svg>
+        </div>
+
+        <div className="space-y-1">
+          <h2 className="text-lg font-bold text-[var(--color-primary)]">Add a photo of your face</h2>
+          <p className="text-sm text-gray-500 max-w-[300px]">
+            A clear, well-lit photo gives the most accurate skin analysis.
           </p>
+        </div>
+
+        {liveError && <p className="text-xs text-amber-600 max-w-[300px]">{liveError}</p>}
+
+        <div className="w-full max-w-[300px] space-y-3 pt-1">
+          <button
+            onClick={openNativeUpload}
+            className="relative w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
+          >
+            Upload a Photo
+            <span className="absolute -top-2.5 right-3 bg-[var(--color-accent)] text-[var(--color-primary)] text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+              Recommended
+            </span>
+          </button>
+          <p className="text-xs text-gray-400">Uses your phone’s camera for the sharpest, clearest result</p>
+
+          <button
+            onClick={startLiveScanner}
+            className="w-full py-3 border border-gray-300 text-gray-600 rounded-xl font-medium text-sm active:scale-[0.98] transition-transform"
+          >
+            Use live scanner instead
+          </button>
         </div>
       </div>
     );
   }
 
-  // Upload fallback
-  return <UploadFallback onFile={handleUploadFile} />;
+  return (
+    <div className="flex-1 flex flex-col">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="user"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+      {renderInner()}
+    </div>
+  );
 }

@@ -26,7 +26,7 @@ interface MpDetection {
   boundingBox?: MpBoundingBox;
 }
 interface MpFaceDetector {
-  detect(image: HTMLImageElement): { detections: MpDetection[] };
+  detect(image: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement): { detections: MpDetection[] };
 }
 interface TasksVisionModule {
   FilesetResolver: { forVisionTasks(wasmBase: string): Promise<unknown> };
@@ -76,6 +76,49 @@ function loadImage(base64: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = `data:image/jpeg;base64,${base64}`;
   });
+}
+
+// Live face tracking for framing/auto-capture. Calls onUpdate with the face
+// box (in video-intrinsic pixels) or null on each tick. Returns a stop fn.
+// Uses throttled still detection on the video element — no second model load.
+export function startFaceTracking(
+  video: HTMLVideoElement,
+  onUpdate: (box: FaceBox | null) => void,
+  intervalMs = 350,
+): () => void {
+  let stopped = false;
+  let timer = 0;
+  (async () => {
+    if (!detectorPromise) detectorPromise = buildDetector();
+    const detector = await detectorPromise;
+    if (stopped) return;
+    if (!detector) {
+      onUpdate(null); // detection unavailable → caller falls back to manual capture
+      return;
+    }
+    const tick = () => {
+      if (stopped) return;
+      try {
+        if (video.videoWidth > 0 && video.readyState >= 2) {
+          const det = detector.detect(video).detections[0];
+          if (det?.boundingBox) {
+            const b = det.boundingBox;
+            onUpdate({ x: b.originX, y: b.originY, width: b.width, height: b.height });
+          } else {
+            onUpdate(null);
+          }
+        }
+      } catch {
+        /* skip this frame */
+      }
+      timer = window.setTimeout(tick, intervalMs);
+    };
+    tick();
+  })();
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+  };
 }
 
 // hasFace defaults to true when detection is unavailable (fail open); box is

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { CameraView } from '../components/CameraView';
 import { UploadFallback } from '../components/UploadFallback';
-import { requestCamera, captureFrame, stopCamera } from '../lib/camera';
+import { requestCamera, captureStill, stopCamera } from '../lib/camera';
 import { compressPhoto } from '../lib/compress';
-import { analyzeBrightness, assessFaceRegion } from '../lib/quality';
+import { analyzeBrightness, assessFaceRegion, cropFace } from '../lib/quality';
 import { detectFace, prewarmFaceDetector } from '../lib/faceDetect';
 
 interface CaptureScreenProps {
@@ -12,6 +12,14 @@ interface CaptureScreenProps {
 
 // ?qa shows the measured quality numbers on the preview, to calibrate thresholds.
 const showQa = new URLSearchParams(window.location.search).has('qa');
+
+const delay = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// Crop a full still to the detected face; fall back to the full frame.
+async function cropToFace(fullBase64: string): Promise<string> {
+  const face = await detectFace(fullBase64);
+  return face.box ? cropFace(fullBase64, face.box) : fullBase64;
+}
 
 export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -23,6 +31,8 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   const [poorQuality, setPoorQuality] = useState(false);
   const [validating, setValidating] = useState(false);
   const [qaText, setQaText] = useState('');
+  const [flashing, setFlashing] = useState(false);
+  const capturingRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Gate junk frames before they reach the AI (it would otherwise return a
@@ -88,16 +98,34 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     };
   }, [stream]);
 
-  function handleCapture() {
-    if (!videoRef.current) return;
-    const base64 = captureFrame(videoRef.current);
-    setPreview(`data:image/jpeg;base64,${base64}`);
-    checkPhoto(base64);
+  // Crop to the face, show it, and run the quality gates.
+  async function prepareAndPreview(fullBase64: string) {
+    const cropped = await cropToFace(fullBase64);
+    setPreview(`data:image/jpeg;base64,${cropped}`);
+    checkPhoto(cropped);
+  }
+
+  // Capture sequence: screen-flash to light the face (front cameras have no
+  // flash — ATA/AAD teledermatology lighting), let auto-exposure adapt, take a
+  // full-resolution still, then crop to the face.
+  async function runCapture() {
+    if (capturingRef.current || !videoRef.current || !stream) return;
+    capturingRef.current = true;
+    try {
+      setFlashing(true);
+      await delay(380); // give the front camera time to re-expose to the bright screen
+      const full = await captureStill(videoRef.current, stream);
+      setFlashing(false);
+      await prepareAndPreview(full);
+    } catch {
+      setFlashing(false);
+    } finally {
+      capturingRef.current = false;
+    }
   }
 
   function handleUploadFile(base64: string) {
-    setPreview(`data:image/jpeg;base64,${base64}`);
-    checkPhoto(base64);
+    void prepareAndPreview(base64);
   }
 
   function handleRetake() {
@@ -187,7 +215,9 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   if (mode === 'camera' && stream) {
     return (
       <div className="flex-1 flex flex-col">
-        <CameraView stream={stream} onCapture={handleCapture} videoRef={videoRef} />
+        {/* Screen-flash: full-white overlay lights the face for the capture. */}
+        {flashing && <div className="fixed inset-0 z-[60] bg-white" aria-hidden="true" />}
+        <CameraView stream={stream} onCapture={runCapture} videoRef={videoRef} />
         <button
           onClick={() => {
             if (stream) stopCamera(stream);

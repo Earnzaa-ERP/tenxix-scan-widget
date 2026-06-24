@@ -201,3 +201,30 @@ export async function assessFaceRegion(
 
   return { exposure, dynamicRange, uniformity, noise, sharpness, poor };
 }
+
+// Crop a JPEG to the face box (square, centered, with margin for context) so
+// the analyzed image is the MAIN FACE filling the frame, not the room.
+// Standard: ICAO 9303 / ISO-IEC 19794-5 face-geometry framing. Returns JPEG
+// base64 (no data: prefix).
+export async function cropFace(
+  base64: string,
+  box: { x: number; y: number; width: number; height: number },
+  margin = 0.35,
+): Promise<string> {
+  const img = await loadImage(base64);
+  const size = Math.max(box.width, box.height) * (1 + margin);
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const x = Math.max(0, Math.min(img.naturalWidth - 1, cx - size / 2));
+  const y = Math.max(0, Math.min(img.naturalHeight - 1, cy - size / 2));
+  const w = Math.min(img.naturalWidth - x, size);
+  const h = Math.min(img.naturalHeight - y, size);
+  if (w < 2 || h < 2) return base64;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w);
+  canvas.height = Math.round(h);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', 0.92).replace(/^data:image\/jpeg;base64,/, '');
+}

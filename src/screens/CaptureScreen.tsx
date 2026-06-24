@@ -4,6 +4,7 @@ import { UploadFallback } from '../components/UploadFallback';
 import { requestCamera, captureFrame, stopCamera } from '../lib/camera';
 import { compressPhoto } from '../lib/compress';
 import { analyzeBrightness } from '../lib/quality';
+import { detectFace, prewarmFaceDetector } from '../lib/faceDetect';
 
 interface CaptureScreenProps {
   onPhotoReady: (base64: string) => void;
@@ -15,21 +16,31 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
   const [tooDark, setTooDark] = useState(false);
+  const [noFace, setNoFace] = useState(false);
+  const [validating, setValidating] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Reject blank/black frames before they reach the AI (it would otherwise
-  // return a confident, bogus result). Runs whenever a new photo is set.
-  async function checkBrightness(base64: string) {
+  // Gate junk frames before they reach the AI (it would otherwise return a
+  // confident, bogus result): reject blank/black frames and frames with no
+  // detectable face. Runs whenever a new photo is set. Both checks fail open.
+  async function checkPhoto(base64: string) {
+    setValidating(true);
     try {
-      const stats = await analyzeBrightness(base64);
+      const [stats, hasFace] = await Promise.all([analyzeBrightness(base64), detectFace(base64)]);
       setTooDark(stats.tooDark);
+      setNoFace(!stats.tooDark && !hasFace); // dark already explains a missing face
     } catch {
-      setTooDark(false); // never block on a measurement failure
+      setTooDark(false);
+      setNoFace(false);
+    } finally {
+      setValidating(false);
     }
   }
 
   useEffect(() => {
     let cancelled = false;
+
+    prewarmFaceDetector(); // start loading the model while the user frames the shot
 
     requestCamera()
       .then((s) => {
@@ -59,21 +70,22 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
     if (!videoRef.current) return;
     const base64 = captureFrame(videoRef.current);
     setPreview(`data:image/jpeg;base64,${base64}`);
-    checkBrightness(base64);
+    checkPhoto(base64);
   }
 
   function handleUploadFile(base64: string) {
     setPreview(`data:image/jpeg;base64,${base64}`);
-    checkBrightness(base64);
+    checkPhoto(base64);
   }
 
   function handleRetake() {
     setPreview(null);
     setTooDark(false);
+    setNoFace(false);
   }
 
   async function handleAnalyze() {
-    if (!preview || tooDark) return;
+    if (!preview || tooDark || noFace || validating) return;
     setCompressing(true);
     try {
       const raw = preview.replace(/^data:image\/[^;]+;base64,/, '');
@@ -91,13 +103,15 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
         <div className="flex-1 bg-black flex items-center justify-center">
           <img src={preview} alt="Your photo" className="max-h-full max-w-full object-contain" />
         </div>
-        {tooDark && (
+        {(tooDark || noFace) && (
           <div className="mx-4 mt-3 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
             <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008M10.34 3.94l-7.4 12.82A1.5 1.5 0 004.24 19h15.52a1.5 1.5 0 001.3-2.24L13.66 3.94a1.5 1.5 0 00-2.6 0z" />
             </svg>
             <p className="text-xs text-amber-800 leading-relaxed">
-              It's too dark to read your skin. Move to a well-lit area facing a light, then retake.
+              {tooDark
+                ? "It's too dark to read your skin. Move to a well-lit area facing a light, then retake."
+                : 'We couldn’t find a face in this photo. Center your face in the frame and retake.'}
             </p>
           </div>
         )}
@@ -111,10 +125,18 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
           </button>
           <button
             onClick={handleAnalyze}
-            disabled={compressing || tooDark}
+            disabled={compressing || validating || tooDark || noFace}
             className="flex-1 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
           >
-            {compressing ? 'Preparing...' : tooDark ? 'Too Dark — Retake' : 'Analyze My Skin'}
+            {compressing
+              ? 'Preparing...'
+              : validating
+                ? 'Checking photo…'
+                : tooDark
+                  ? 'Too Dark — Retake'
+                  : noFace
+                    ? 'No Face — Retake'
+                    : 'Analyze My Skin'}
           </button>
         </div>
       </div>

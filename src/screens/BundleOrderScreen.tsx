@@ -73,8 +73,8 @@ export function BundleOrderScreen({
         device_type: deviceType,
       });
       onSuccess(res.order_ref);
-    } catch (err: any) {
-      onError(err.message || 'Something went wrong. Please try again.');
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -111,7 +111,7 @@ export function BundleOrderScreen({
           ))}
           <div className="border-t border-gray-200 pt-2 flex justify-between items-center">
             <span className="font-semibold text-sm text-[var(--color-primary)]">Total</span>
-            <span className="font-bold text-base text-[var(--color-accent)]">{formatNaira(total)}</span>
+            <span className="font-bold text-base text-[var(--color-primary)]">{formatNaira(total)}</span>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ export function BundleOrderScreen({
             onChange={(e) => update('full_name', e.target.value)}
             maxLength={100}
             required
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           />
 
           <input
@@ -136,7 +136,7 @@ export function BundleOrderScreen({
             onChange={(e) => update('phone', e.target.value)}
             maxLength={15}
             required
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           />
 
           <input
@@ -145,14 +145,14 @@ export function BundleOrderScreen({
             value={form.alt_phone}
             onChange={(e) => update('alt_phone', e.target.value)}
             maxLength={15}
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           />
 
           <select
             value={form.state}
             onChange={(e) => update('state', e.target.value)}
             required
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)] bg-white"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] bg-white"
           >
             <option value="">Select State *</option>
             {NIGERIAN_STATES.map((s) => (
@@ -166,7 +166,7 @@ export function BundleOrderScreen({
             value={form.city}
             onChange={(e) => update('city', e.target.value)}
             maxLength={50}
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           />
 
           <textarea
@@ -175,7 +175,7 @@ export function BundleOrderScreen({
             onChange={(e) => update('address', e.target.value)}
             maxLength={500}
             rows={2}
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)] resize-none"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] resize-none"
           />
 
           <input
@@ -184,7 +184,7 @@ export function BundleOrderScreen({
             value={form.landmark}
             onChange={(e) => update('landmark', e.target.value)}
             maxLength={255}
-            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/30 focus:border-[var(--color-accent)]"
+            className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)]"
           />
 
           {/* Address type */}
@@ -196,7 +196,7 @@ export function BundleOrderScreen({
                 value="home"
                 checked={form.address_type === 'home'}
                 onChange={() => update('address_type', 'home')}
-                className="accent-[var(--color-accent)]"
+                className="accent-[var(--color-primary)]"
               />
               Home
             </label>
@@ -207,7 +207,7 @@ export function BundleOrderScreen({
                 value="office"
                 checked={form.address_type === 'office'}
                 onChange={() => update('address_type', 'office')}
-                className="accent-[var(--color-accent)]"
+                className="accent-[var(--color-primary)]"
               />
               Office
             </label>
@@ -218,7 +218,7 @@ export function BundleOrderScreen({
         <button
           type="submit"
           disabled={submitting}
-          className="w-full py-3.5 bg-[var(--color-accent)] text-white rounded-xl font-semibold text-base disabled:opacity-50 active:scale-[0.98] transition-transform"
+          className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-base disabled:opacity-50 active:scale-[0.98] transition-transform"
         >
           {submitting ? 'Placing Order...' : `Place Order \u2014 ${formatNaira(total)}`}
         </button>

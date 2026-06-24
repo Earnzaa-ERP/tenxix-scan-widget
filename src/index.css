@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #1a1a2e;
-  --color-accent: #e94560;
+  /* Kira brand palette */
+  --color-primary: #560A88;      /* deep purple */
+  --color-primary-dark: #3A0660; /* darker purple — gradient end */
+  --color-accent: #8DFD00;        /* lime — highlights on dark surfaces only */
 }
 
 body {
@@ -27,8 +29,61 @@ body {
   animation: scan-pulse 2s ease-out infinite;
 }
 
+/* ---- Kira analyzing / formulation animations (dark surfaces) ---- */
+
+/* Scan line sweeping down then up over the face */
+@keyframes kira-sweep {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(var(--sweep-distance, 240px)); }
+  100% { transform: translateY(0); }
+}
+
+/* Gentle breathing of the face image */
+@keyframes kira-breathe {
+  0%, 100% { transform: scale(0.96); }
+  50% { transform: scale(1); }
+}
+
+/* Concern marker pop-in */
+@keyframes kira-marker {
+  0% { opacity: 0; transform: scale(0.3); }
+  60% { transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Seamless vertical ticker (content duplicated, scroll -50%) */
+@keyframes kira-ticker {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+/* Soft fade-in used for phase text + grid */
+@keyframes kira-fade-in {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Orbital rotation for the formulation constellation */
+@keyframes kira-orbit {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Pulse ring radiating outward from the formulation core */
+@keyframes kira-pulse-ring {
+  0% { transform: scale(0.4); opacity: 0.5; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+/* Skeleton-card shimmer sweep */
+@keyframes kira-shimmer {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-scan-pulse {
-    animation: none;
+  .animate-scan-pulse,
+  [class*="kira-anim"] {
+    animation: none !important;
   }
 }

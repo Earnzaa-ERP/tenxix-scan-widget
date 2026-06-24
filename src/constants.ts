@@ -12,22 +12,23 @@ export const JPEG_QUALITY_STEP = 0.10;
 export const JPEG_QUALITY_MIN = 0.50;
 
 export const BRAND = {
-  name: 'Tenxix Beauty',
+  name: 'Kira',
   tagline: 'Discover Your Perfect Skincare Routine',
-  subtitle: 'Our AI analyzes your skin in seconds and recommends the ideal Tenxix products for your unique skin needs.',
+  subtitle: 'Our AI analyzes your skin in seconds and recommends the ideal products for your unique skin needs.',
   colors: {
-    primary: '#1a1a2e',
+    primary: '#560A88',
+    primaryDark: '#3A0660',
     primaryForeground: '#ffffff',
-    accent: '#e94560',
-    accentForeground: '#ffffff',
+    accent: '#8DFD00',
+    accentForeground: '#1a1a1a', // lime is bright — pair with dark text
     background: '#ffffff',
     surface: '#f8f9fa',
-    text: '#1a1a2e',
+    text: '#1a1a1a',
     textMuted: '#6c757d',
     border: '#e9ecef',
-    success: '#28a745',
+    success: '#34C759',
     warning: '#ffc107',
-    error: '#dc3545',
+    error: '#FF3B30',
   },
 } as const;
 

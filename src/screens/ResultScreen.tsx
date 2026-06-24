@@ -39,7 +39,7 @@ export function ResultScreen({ result, error, refCode, photoBase64, configProduc
         {!isRateLimit && (
           <button
             onClick={onScanAgain}
-            className="px-6 py-3 bg-[var(--color-accent)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform"
+            className="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform"
           >
             Try Again
           </button>
@@ -54,7 +54,7 @@ export function ResultScreen({ result, error, refCode, photoBase64, configProduc
       {/* Scan photo + headline */}
       <div className="flex gap-4 items-start">
         {photoBase64 && (
-          <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-accent)]/20">
+          <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-primary)]/20">
             <img
               src={`data:image/jpeg;base64,${photoBase64}`}
               alt="Your skin scan"
@@ -100,7 +100,7 @@ export function ResultScreen({ result, error, refCode, photoBase64, configProduc
       {result.recommended_products.length >= 1 && (
         <button
           onClick={onBundleOrder}
-          className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
+          className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
         >
           {result.recommended_products.length === 1
             ? 'Order This Product →'

@@ -48,12 +48,12 @@ export function ProductDetailModal({ recommended, detail, refCode, onClose }: Pr
         <div className="px-5 py-4 space-y-5">
           {/* Price */}
           {recommended.price != null && (
-            <p className="text-[var(--color-accent)] font-bold text-xl">{formatNaira(recommended.price)}</p>
+            <p className="text-[var(--color-primary)] font-bold text-xl">{formatNaira(recommended.price)}</p>
           )}
 
           {/* Why it matches — AI personalized */}
           {recommended.why_it_matches && (
-            <div className="bg-gradient-to-br from-violet-50 to-pink-50 rounded-xl p-4 space-y-2">
+            <div className="bg-gradient-to-br from-violet-50 to-violet-100 rounded-xl p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <svg className="w-4 h-4 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
@@ -79,7 +79,7 @@ export function ProductDetailModal({ recommended, detail, refCode, onClose }: Pr
               <div className="space-y-2">
                 {detail.ingredients.map((ing, i) => (
                   <div key={i} className="flex gap-3 items-start">
-                    <div className="w-2 h-2 rounded-full bg-[var(--color-accent)] mt-1.5 shrink-0" />
+                    <div className="w-2 h-2 rounded-full bg-[var(--color-primary)] mt-1.5 shrink-0" />
                     <div>
                       <span className="font-semibold text-sm text-[var(--color-primary)]">{ing.name}</span>
                       {ing.explanation && (
@@ -107,7 +107,7 @@ export function ProductDetailModal({ recommended, detail, refCode, onClose }: Pr
                       </div>
                       <div className="relative">
                         <img src={test.after_url} alt="After" className="w-full aspect-square object-cover" />
-                        <span className="absolute bottom-1 left-1 bg-[var(--color-accent)]/80 text-white text-[10px] px-1.5 py-0.5 rounded">After</span>
+                        <span className="absolute bottom-1 left-1 bg-[var(--color-primary)]/80 text-white text-[10px] px-1.5 py-0.5 rounded">After</span>
                       </div>
                     </div>
                   )}
@@ -142,7 +142,7 @@ export function ProductDetailModal({ recommended, detail, refCode, onClose }: Pr
             {hasRedirect ? (
               <button
                 onClick={handleBuy}
-                className="w-full py-3.5 bg-[var(--color-accent)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
+                className="w-full py-3.5 bg-[var(--color-primary)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
               >
                 Get Yours Now &rarr;
               </button>

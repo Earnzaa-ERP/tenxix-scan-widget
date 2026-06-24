@@ -3,6 +3,8 @@ import type { AppState, AppAction, ScanResult } from './types';
 import { fetchWidgetConfig } from './api';
 import { generateSessionId, detectDeviceType } from './lib/session';
 import { Layout } from './components/Layout';
+import { AnalyzingAnimation } from './components/AnalyzingAnimation';
+import { FormulationAnimation } from './components/FormulationAnimation';
 import { IntroScreen } from './screens/IntroScreen';
 import { CaptureScreen } from './screens/CaptureScreen';
 import { AnalyzingScreen } from './screens/AnalyzingScreen';
@@ -63,7 +65,22 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 }
 
+// Dev-only preview switch so the animation screens can be eyeballed in isolation
+// (the real analyzing screen is gone in seconds, and the formulation animation
+// isn't in the live flow yet). Harmless: only triggers with a ?preview= param.
+const previewMode = params.get('preview');
+
 export default function App() {
+  if (previewMode === 'analyzing') {
+    return <Layout><AnalyzingAnimation photoBase64={null} /></Layout>;
+  }
+  if (previewMode === 'formulation') {
+    return <Layout><FormulationAnimation /></Layout>;
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   useEffect(() => {

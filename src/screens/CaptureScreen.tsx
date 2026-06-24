@@ -86,7 +86,7 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
           <button
             onClick={handleAnalyze}
             disabled={compressing}
-            className="flex-1 py-3 bg-[var(--color-accent)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-60"
+            className="flex-1 py-3 bg-[var(--color-primary)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-60"
           >
             {compressing ? 'Preparing...' : 'Analyze My Skin'}
           </button>

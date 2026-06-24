@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ScanAnimation } from '../components/ScanAnimation';
+import { AnalyzingAnimation } from '../components/AnalyzingAnimation';
 import { analyzeSkinScan, ApiError } from '../api';
 import type { ScanResult } from '../types';
 
@@ -43,13 +43,5 @@ export function AnalyzingScreen({
       });
   }, [refCode, photoBase64, productName, sessionId, deviceType, onResult, onError]);
 
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
-      <ScanAnimation />
-      <div className="text-center space-y-2">
-        <p className="text-[var(--color-primary)] font-semibold text-lg">Analyzing your skin...</p>
-        <p className="text-gray-400 text-sm">This usually takes a few seconds</p>
-      </div>
-    </div>
-  );
+  return <AnalyzingAnimation photoBase64={photoBase64} />;
 }

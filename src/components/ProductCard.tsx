@@ -30,7 +30,7 @@ export function ProductCard({ product, refCode, onKnowMore }: ProductCardProps) 
       <div>
         <h3 className="font-semibold text-[var(--color-primary)] text-base">{product.name}</h3>
         {product.price != null && (
-          <p className="text-[var(--color-accent)] font-bold text-lg mt-1">
+          <p className="text-[var(--color-primary)] font-bold text-lg mt-1">
             {formatNaira(product.price)}
           </p>
         )}
@@ -53,7 +53,7 @@ export function ProductCard({ product, refCode, onKnowMore }: ProductCardProps) 
         {hasRedirect ? (
           <button
             onClick={handleClick}
-            className="flex-1 py-2.5 bg-[var(--color-accent)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform"
+            className="flex-1 py-2.5 bg-[var(--color-primary)] text-white rounded-lg font-semibold text-sm active:scale-[0.98] transition-transform"
           >
             Get Yours Now &rarr;
           </button>

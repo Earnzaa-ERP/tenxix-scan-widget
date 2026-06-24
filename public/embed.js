@@ -7,7 +7,7 @@
   var mode = script.getAttribute('data-mode') || 'both'; // 'floating', 'inline', or 'both'
   var buttonText = script.getAttribute('data-button-text') || 'Analyze Your Skin';
   var position = script.getAttribute('data-button-position') || 'bottom-right';
-  var buttonColor = script.getAttribute('data-button-color') || '#e94560';
+  var buttonColor = script.getAttribute('data-button-color') || '#560A88';
 
   if (!ref) {
     console.warn('TenxixScan: data-ref attribute is required');

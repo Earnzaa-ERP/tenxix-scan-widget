@@ -21,10 +21,39 @@ const CENTER_ACCEPT = 0.55; // face center must be within this ellipse fraction
 const TICK_MS = 200;
 const HOLD_TICKS = 5; // ~1s held inside the oval before auto-capture
 
+// Live lighting coach (ISO/IEC 29794-5 exposure). Fairness-safe: flags "too
+// dark" only when the face is BOTH dim and low-contrast, so a well-lit dark
+// face (which keeps highlights/shadows) is never nagged.
+const DARK_SAMPLE = 32;
+function faceTooDark(video: HTMLVideoElement, box: { x: number; y: number; width: number; height: number }, canvas: HTMLCanvasElement): boolean {
+  const ctx = canvas.getContext('2d');
+  if (!ctx || box.width < 2 || box.height < 2) return false;
+  try {
+    ctx.drawImage(video, box.x, box.y, box.width, box.height, 0, 0, DARK_SAMPLE, DARK_SAMPLE);
+    const { data } = ctx.getImageData(0, 0, DARK_SAMPLE, DARK_SAMPLE);
+    const n = data.length / 4;
+    let sum = 0;
+    const luma = new Float32Array(n);
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      luma[p] = l;
+      sum += l;
+    }
+    const mean = sum / n;
+    let v = 0;
+    for (let p = 0; p < n; p++) v += (luma[p] - mean) ** 2;
+    const std = Math.sqrt(v / n);
+    return mean < 24 || (mean < 45 && std < 15);
+  } catch {
+    return false; // never block on a sampling error
+  }
+}
+
 export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
   const attached = useRef(false);
   const firedRef = useRef(false);
   const stableRef = useRef(0);
+  const sampleCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [framed, setFramed] = useState(false);
   const [progress, setProgress] = useState(0);
   const [hint, setHint] = useState('Fit your face inside the oval');
@@ -62,6 +91,18 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
         const ch = video.clientHeight;
         if (!box || !vw || !vh || !cw || !ch) {
           reset('Fit your face inside the oval');
+          return;
+        }
+
+        // Lighting coach — runs before framing so a dark face can't auto-capture.
+        if (!sampleCanvasRef.current) {
+          const c = document.createElement('canvas');
+          c.width = DARK_SAMPLE;
+          c.height = DARK_SAMPLE;
+          sampleCanvasRef.current = c;
+        }
+        if (faceTooDark(video, box, sampleCanvasRef.current)) {
+          reset('Too dark — face a window or light');
           return;
         }
 

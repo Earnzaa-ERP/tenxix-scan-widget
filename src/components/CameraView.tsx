@@ -10,7 +10,8 @@ interface CameraViewProps {
 // ICAO/ISO-style framing targets (normalized): the face should fill a good
 // share of the frame and be centered in the oval before we auto-capture.
 const MIN_FACE_H = 0.4; // face height / frame height — "move closer" below this
-const MAX_FACE_H = 0.95; // "move back" above this
+const MAX_FACE_H = 0.86; // "move back" above this
+const EDGE_MARGIN = 0.04; // face this close to top/bottom edge = cut off
 const CENTER_TOL_X = 0.18;
 const CENTER_TOL_Y = 0.2;
 const OVAL_CENTER_Y = 0.46; // oval sits slightly above center
@@ -50,12 +51,15 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
         return;
       }
       const sizeH = box.height / fh;
+      const top = box.y / fh;
+      const bottom = (box.y + box.height) / fh;
       const cx = (box.x + box.width / 2) / fw;
       const cy = (box.y + box.height / 2) / fh;
 
       let problem: string | null = null;
       if (sizeH < MIN_FACE_H) problem = 'Move a little closer';
-      else if (sizeH > MAX_FACE_H) problem = 'Move back a little';
+      else if (sizeH > MAX_FACE_H || top < EDGE_MARGIN || bottom > 1 - EDGE_MARGIN)
+        problem = 'Move back so your whole face fits';
       else if (Math.abs(cx - 0.5) > CENTER_TOL_X || Math.abs(cy - OVAL_CENTER_Y) > CENTER_TOL_Y)
         problem = 'Center your face in the oval';
 
@@ -92,6 +96,9 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
         playsInline
         muted
         className="flex-1 object-cover scale-x-[-1]"
+        // Brighten the PREVIEW only so users can see to frame in dim light.
+        // The captured still is taken from the raw camera, unaffected by this.
+        style={{ filter: 'brightness(1.4) contrast(1.05)' }}
       />
 
       {/* Oval framing guide — darkens outside the ellipse; turns green when
@@ -102,7 +109,8 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
           style={{
             width: '64%',
             aspectRatio: '3 / 4',
-            border: `${framed ? 3 : 2}px solid ${framed ? '#22c55e' : 'rgba(141,253,0,0.9)'}`,
+            // White = align your face; green = locked & about to capture.
+            border: `${framed ? 4 : 2}px solid ${framed ? '#22c55e' : 'rgba(255,255,255,0.95)'}`,
             boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
           }}
         />

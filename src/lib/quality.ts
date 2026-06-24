@@ -60,32 +60,37 @@ export async function analyzeBrightness(base64: string): Promise<BrightnessStats
   return { mean, stdDev, tooDark };
 }
 
-// ---- Face-region quality -------------------------------------------------
+// ---- Face-region quality (ISO/IEC 29794-5 component measures) -------------
 //
-// Whole-frame brightness can pass while the FACE is underexposed, hazy, or
-// soft (a lit wall behind a dim face lifts the average). So we assess just the
-// detected face box.
+// Standard: ISO/IEC 29794-5 (Face image quality), as implemented by NIST OFIQ
+// and used for ICAO/biometric capture. We assess the DETECTED FACE BOX (not
+// the whole frame — a lit wall behind a dim face would otherwise pass) against
+// the standard's component measures: exposure, dynamic range, illumination
+// uniformity, noise, and sharpness.
 //
-// FAIRNESS: we do NOT threshold on absolute darkness — that would penalise
-// well-lit dark skin. We crop the face, DOWNSAMPLE it (which averages out
-// sensor noise), and measure:
-//   - structure: luminance spread across the face. A well-exposed face of ANY
-//     skin tone has highlights (nose/forehead/cheeks) and shadows (eye sockets)
-//     → healthy spread. An underexposed/hazy face collapses to a flat band.
-//   - sharpness: variance of a Laplacian on the denoised crop → low when soft
-//     or out of focus.
-// Both are computed on the denoised crop so grain doesn't masquerade as detail.
+// FAIRNESS: none of these gate on absolute darkness, so well-lit dark skin
+// always passes. Exposure is paired with dynamic range (a dark BUT well-lit
+// face still has a wide tonal range); uniformity and noise are ratio/estimator
+// based and skin-tone independent. Everything fails open.
 //
-// Thresholds are conservative starting points — they err toward letting
-// borderline photos through and want calibration against real device samples.
-// Everything fails open.
+// NOISE is why the earlier version failed: grain inflates spread and Laplacian
+// "detail". We estimate sensor noise with Immerkær's method (1996) on the
+// near-native crop, and measure sharpness on a denoised copy so grain can't
+// pose as focus.
 
-const FACE_SAMPLE = 48;       // denoised crop dimension
-const STRUCTURE_MIN = 20;     // min luminance spread across the face
-const SHARPNESS_MIN = 12;     // min Laplacian variance (severe blur only)
+const FACE_RES = 160;          // max crop dimension — keep noise signal intact
+// Thresholds per component (0-255 luma scale unless noted). Tunable via ?qa.
+const EXPOSURE_MIN = 45;       // face mean luminance floor (with low DR)
+const DYNAMIC_RANGE_MIN = 55;  // p95 - p5 of face luminance
+const UNIFORMITY_MAX = 0.34;   // max |left-right| / brighter-half luminance
+const NOISE_MAX = 6.0;         // max estimated noise sigma
+const SHARPNESS_MIN = 14;      // min Laplacian variance on the denoised crop
 
 export interface FaceQuality {
-  structure: number;
+  exposure: number;
+  dynamicRange: number;
+  uniformity: number; // 0 = even, 1 = fully one-sided
+  noise: number;
   sharpness: number;
   poor: boolean;
 }
@@ -96,51 +101,103 @@ export async function assessFaceRegion(
 ): Promise<FaceQuality> {
   const img = await loadImage(base64);
 
-  // Pad the box ~10% and clamp to the image bounds.
-  const pad = 0.1;
-  const x = Math.max(0, box.x - box.width * pad);
-  const y = Math.max(0, box.y - box.height * pad);
-  const w = Math.min(img.naturalWidth - x, box.width * (1 + 2 * pad));
-  const h = Math.min(img.naturalHeight - y, box.height * (1 + 2 * pad));
-  if (w <= 1 || h <= 1) return { structure: 999, sharpness: 999, poor: false };
+  // Pad the box ~8% and clamp to the image bounds.
+  const pad = 0.08;
+  const sx = Math.max(0, box.x - box.width * pad);
+  const sy = Math.max(0, box.y - box.height * pad);
+  const sw = Math.min(img.naturalWidth - sx, box.width * (1 + 2 * pad));
+  const sh = Math.min(img.naturalHeight - sy, box.height * (1 + 2 * pad));
+  const ok: FaceQuality = { exposure: 255, dynamicRange: 255, uniformity: 0, noise: 0, sharpness: 999, poor: false };
+  if (sw <= 2 || sh <= 2) return ok;
 
+  const scale = Math.min(FACE_RES / sw, FACE_RES / sh, 1);
+  const W = Math.max(3, Math.round(sw * scale));
+  const H = Math.max(3, Math.round(sh * scale));
   const canvas = document.createElement('canvas');
-  canvas.width = FACE_SAMPLE;
-  canvas.height = FACE_SAMPLE;
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, x, y, w, h, 0, 0, FACE_SAMPLE, FACE_SAMPLE); // downsample = denoise
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
 
-  const { data } = ctx.getImageData(0, 0, FACE_SAMPLE, FACE_SAMPLE);
-  const luma = new Float32Array(FACE_SAMPLE * FACE_SAMPLE);
+  const { data } = ctx.getImageData(0, 0, W, H);
+  const luma = new Float32Array(W * H);
   let sum = 0;
-  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+  let leftSum = 0;
+  let rightSum = 0;
+  let leftN = 0;
+  let rightN = 0;
+  const half = W / 2;
+  for (let p = 0, i = 0; p < luma.length; p++, i += 4) {
     const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
     luma[p] = l;
     sum += l;
-  }
-  const mean = sum / luma.length;
-
-  let varSum = 0;
-  for (let p = 0; p < luma.length; p++) varSum += (luma[p] - mean) ** 2;
-  const structure = Math.sqrt(varSum / luma.length);
-
-  // Laplacian variance (4-neighbour) over the interior.
-  let lapSum = 0;
-  let lapSumSq = 0;
-  let n = 0;
-  for (let yy = 1; yy < FACE_SAMPLE - 1; yy++) {
-    for (let xx = 1; xx < FACE_SAMPLE - 1; xx++) {
-      const idx = yy * FACE_SAMPLE + xx;
-      const lap =
-        4 * luma[idx] - luma[idx - 1] - luma[idx + 1] - luma[idx - FACE_SAMPLE] - luma[idx + FACE_SAMPLE];
-      lapSum += lap;
-      lapSumSq += lap * lap;
-      n++;
+    if (p % W < half) {
+      leftSum += l;
+      leftN++;
+    } else {
+      rightSum += l;
+      rightN++;
     }
   }
-  const lapMean = lapSum / n;
-  const sharpness = lapSumSq / n - lapMean * lapMean;
+  const exposure = sum / luma.length;
 
-  const poor = structure < STRUCTURE_MIN || sharpness < SHARPNESS_MIN;
-  return { structure, sharpness, poor };
+  // Dynamic range: robust p5..p95 spread.
+  const sorted = Float32Array.from(luma).sort();
+  const p5 = sorted[Math.floor(0.05 * sorted.length)];
+  const p95 = sorted[Math.floor(0.95 * sorted.length)];
+  const dynamicRange = p95 - p5;
+
+  // Illumination uniformity: left vs right brightness imbalance (shadowed side).
+  const meanL = leftSum / Math.max(1, leftN);
+  const meanR = rightSum / Math.max(1, rightN);
+  const uniformity = Math.abs(meanL - meanR) / Math.max(1, meanL, meanR);
+
+  // Noise sigma — Immerkær (1996) fast noise variance estimate.
+  let nAcc = 0;
+  let nCount = 0;
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const c = y * W + x;
+      const v =
+        4 * luma[c] -
+        2 * (luma[c - 1] + luma[c + 1] + luma[c - W] + luma[c + W]) +
+        (luma[c - W - 1] + luma[c - W + 1] + luma[c + W - 1] + luma[c + W + 1]);
+      nAcc += Math.abs(v);
+      nCount++;
+    }
+  }
+  const noise = nCount ? (Math.sqrt(Math.PI / 2) * nAcc) / (6 * nCount) : 0;
+
+  // Sharpness on a 3x3 box-blurred (denoised) copy, so noise can't pose as focus.
+  const blur = new Float32Array(W * H);
+  for (let y = 1; y < H - 1; y++) {
+    for (let x = 1; x < W - 1; x++) {
+      const c = y * W + x;
+      blur[c] =
+        (luma[c] + luma[c - 1] + luma[c + 1] + luma[c - W] + luma[c + W] +
+          luma[c - W - 1] + luma[c - W + 1] + luma[c + W - 1] + luma[c + W + 1]) / 9;
+    }
+  }
+  let lapSum = 0;
+  let lapSumSq = 0;
+  let lapN = 0;
+  for (let y = 2; y < H - 2; y++) {
+    for (let x = 2; x < W - 2; x++) {
+      const c = y * W + x;
+      const lap = 4 * blur[c] - blur[c - 1] - blur[c + 1] - blur[c - W] - blur[c + W];
+      lapSum += lap;
+      lapSumSq += lap * lap;
+      lapN++;
+    }
+  }
+  const sharpness = lapN ? lapSumSq / lapN - (lapSum / lapN) ** 2 : 999;
+
+  const poor =
+    (exposure < EXPOSURE_MIN && dynamicRange < DYNAMIC_RANGE_MIN) || // under-exposed AND flat
+    dynamicRange < DYNAMIC_RANGE_MIN * 0.6 || // severely flat regardless
+    uniformity > UNIFORMITY_MAX ||            // one side in shadow
+    noise > NOISE_MAX ||                      // grainy / low-light sensor noise
+    sharpness < SHARPNESS_MIN;                // soft / out of focus
+
+  return { exposure, dynamicRange, uniformity, noise, sharpness, poor };
 }

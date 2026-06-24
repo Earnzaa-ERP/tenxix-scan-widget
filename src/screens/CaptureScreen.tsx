@@ -48,7 +48,7 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
         setPoorQuality(q.poor);
         if (showQa) {
           setQaText(
-            `mean ${stats.mean.toFixed(0)} · std ${stats.stdDev.toFixed(0)} · faceStruct ${q.structure.toFixed(0)} · sharp ${q.sharpness.toFixed(0)}`,
+            `expo ${q.exposure.toFixed(0)} · DR ${q.dynamicRange.toFixed(0)} · unif ${(q.uniformity * 100).toFixed(0)}% · noise ${q.noise.toFixed(1)} · sharp ${q.sharpness.toFixed(0)}`,
           );
         }
       }

@@ -1,5 +1,5 @@
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, ANALYZE_TIMEOUT_MS } from './constants';
-import type { WidgetConfig, ScanResult, BundleOrderPayload, BundleOrderResponse } from './types';
+import type { WidgetConfig, ScanResult, RecommendedProduct, BundleOrderPayload, BundleOrderResponse } from './types';
 
 const headers = {
   apikey: SUPABASE_ANON_KEY,
@@ -8,6 +8,48 @@ const headers = {
 };
 
 export type ApiErrorCode = 'invalid_ref' | 'rate_limit' | 'ai_failure' | 'timeout' | 'network' | 'unknown';
+
+// The AI sometimes returns JSON that parses but has an unexpected shape — a
+// missing concerns array, a null product, a non-string field. Without this the
+// result screen would dereference result.skin_concerns.map(), product.name,
+// etc. and throw a TypeError, crashing the whole widget. Sanitizing at fetch
+// time lets every downstream render path trust the data.
+function sanitizeScanResult(raw: unknown): ScanResult {
+  const r = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
+
+  const validOutcomes: ScanResult['outcome'][] = ['match', 'redirect', 'combo'];
+  const outcome = validOutcomes.includes(r.outcome as ScanResult['outcome'])
+    ? (r.outcome as ScanResult['outcome'])
+    : 'match';
+
+  const skin_concerns = Array.isArray(r.skin_concerns)
+    ? r.skin_concerns.filter((c: unknown): c is string => typeof c === 'string' && c.length > 0)
+    : [];
+
+  const recommended_products = Array.isArray(r.recommended_products)
+    ? r.recommended_products
+        .filter(
+          (p: unknown): p is Record<string, unknown> =>
+            !!p && typeof p === 'object' && typeof (p as Record<string, unknown>).name === 'string' &&
+            ((p as Record<string, unknown>).name as string).length > 0,
+        )
+        .map((p): RecommendedProduct => ({
+          id: typeof p.id === 'string' ? p.id : null,
+          name: p.name as string,
+          price: typeof p.price === 'number' ? p.price : null,
+          redirect_url: typeof p.redirect_url === 'string' ? p.redirect_url : null,
+          why_it_matches: typeof p.why_it_matches === 'string' ? p.why_it_matches : null,
+        }))
+    : [];
+
+  return {
+    outcome,
+    headline: typeof r.headline === 'string' ? r.headline : '',
+    explanation: typeof r.explanation === 'string' ? r.explanation : '',
+    skin_concerns,
+    recommended_products,
+  };
+}
 
 export class ApiError extends Error {
   code: ApiErrorCode;
@@ -79,7 +121,7 @@ export async function analyzeSkinScan(params: {
   }
 
   const data = await res.json();
-  return data as ScanResult;
+  return sanitizeScanResult(data);
 }
 
 export async function submitBundleOrder(payload: BundleOrderPayload): Promise<BundleOrderResponse> {

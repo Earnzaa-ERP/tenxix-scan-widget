@@ -16,14 +16,35 @@ const MODEL_URL =
   'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
 
 // Minimal shapes of the bits of the library we touch (avoids pulling types).
+interface MpBoundingBox {
+  originX: number;
+  originY: number;
+  width: number;
+  height: number;
+}
+interface MpDetection {
+  boundingBox?: MpBoundingBox;
+}
 interface MpFaceDetector {
-  detect(image: HTMLImageElement): { detections: unknown[] };
+  detect(image: HTMLImageElement): { detections: MpDetection[] };
 }
 interface TasksVisionModule {
   FilesetResolver: { forVisionTasks(wasmBase: string): Promise<unknown> };
   FaceDetector: {
     createFromOptions(fileset: unknown, options: unknown): Promise<MpFaceDetector>;
   };
+}
+
+/** Bounding box of a detected face, in source-image pixels. */
+export interface FaceBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+export interface FaceResult {
+  hasFace: boolean;
+  box: FaceBox | null;
 }
 
 let detectorPromise: Promise<MpFaceDetector | null> | null = null;
@@ -57,15 +78,19 @@ function loadImage(base64: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Returns true if a face is detected — or if detection is unavailable (fail open). */
-export async function detectFace(base64: string): Promise<boolean> {
+// hasFace defaults to true when detection is unavailable (fail open); box is
+// null in that case so the face-region quality check is simply skipped.
+export async function detectFace(base64: string): Promise<FaceResult> {
   if (!detectorPromise) detectorPromise = buildDetector();
   try {
     const detector = await detectorPromise;
-    if (!detector) return true; // model unavailable → don't block
+    if (!detector) return { hasFace: true, box: null }; // model unavailable → don't block
     const img = await loadImage(base64);
-    return detector.detect(img).detections.length > 0;
+    const det = detector.detect(img).detections[0];
+    if (!det || !det.boundingBox) return { hasFace: false, box: null };
+    const bb = det.boundingBox;
+    return { hasFace: true, box: { x: bb.originX, y: bb.originY, width: bb.width, height: bb.height } };
   } catch {
-    return true; // never block on a detection error
+    return { hasFace: true, box: null }; // never block on a detection error
   }
 }

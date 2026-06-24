@@ -21,7 +21,7 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
   }, [stream, videoRef]);
 
   return (
-    <div className="relative flex-1 flex flex-col bg-black">
+    <div className="relative flex-1 flex flex-col bg-black overflow-hidden">
       <video
         ref={videoRef}
         autoPlay
@@ -29,6 +29,28 @@ export function CameraView({ stream, onCapture, videoRef }: CameraViewProps) {
         muted
         className="flex-1 object-cover scale-x-[-1]"
       />
+
+      {/* Oval framing guide — darkens everything outside the ellipse so the
+          user centers just their face inside it. Purely visual; clicks pass
+          through to the capture button below. */}
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center">
+        <div
+          className="mt-[14%] rounded-[50%]"
+          style={{
+            width: '64%',
+            aspectRatio: '3 / 4',
+            border: '2px solid rgba(141,253,0,0.9)',
+            boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+          }}
+        />
+        <p
+          className="mt-4 text-white text-sm font-medium text-center px-6"
+          style={{ textShadow: '0 1px 4px rgba(0,0,0,0.85)' }}
+        >
+          Position your face within the oval
+        </p>
+      </div>
+
       <div className="absolute bottom-6 left-0 right-0 flex justify-center">
         <button
           onClick={onCapture}

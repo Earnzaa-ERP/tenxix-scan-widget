@@ -1,5 +1,5 @@
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, ANALYZE_TIMEOUT_MS } from './constants';
-import type { WidgetConfig, ScanResult, RecommendedProduct, BundleOrderPayload, BundleOrderResponse } from './types';
+import type { WidgetConfig, ScanResult, RecommendedProduct, Regimen, RegimenStep, BundleOrderPayload, BundleOrderResponse } from './types';
 
 const headers = {
   apikey: SUPABASE_ANON_KEY,
@@ -42,12 +42,54 @@ function sanitizeScanResult(raw: unknown): ScanResult {
         }))
     : [];
 
+  const regimen = sanitizeRegimen(r.regimen);
+
   return {
     outcome,
     headline: typeof r.headline === 'string' ? r.headline : '',
     explanation: typeof r.explanation === 'string' ? r.explanation : '',
     skin_concerns,
     recommended_products,
+    ...(regimen ? { regimen } : {}),
+  };
+}
+
+function sanitizeRegimen(raw: unknown): Regimen | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+
+  const cleanSteps = (arr: unknown): RegimenStep[] =>
+    Array.isArray(arr)
+      ? arr
+          .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object')
+          .map((s): RegimenStep => {
+            const p = (s.product && typeof s.product === 'object' ? s.product : {}) as Record<string, unknown>;
+            return {
+              type: typeof s.type === 'string' ? s.type : '',
+              instruction: typeof s.instruction === 'string' ? s.instruction : '',
+              why: typeof s.why === 'string' ? s.why : '',
+              key_ingredients: Array.isArray(s.key_ingredients)
+                ? s.key_ingredients.filter((k): k is string => typeof k === 'string')
+                : [],
+              product: {
+                id: typeof p.id === 'string' ? p.id : null,
+                name: typeof p.name === 'string' ? p.name : '',
+                price: typeof p.price === 'number' ? p.price : null,
+                redirect_url: typeof p.redirect_url === 'string' ? p.redirect_url : null,
+              },
+            };
+          })
+          .filter((s) => s.product.name.length > 0 || s.instruction.length > 0)
+      : [];
+
+  const morning = cleanSteps(r.morning);
+  const evening = cleanSteps(r.evening);
+  if (morning.length === 0 && evening.length === 0) return undefined; // nothing usable
+
+  return {
+    morning,
+    evening,
+    tips: Array.isArray(r.tips) ? r.tips.filter((t): t is string => typeof t === 'string') : [],
   };
 }
 
@@ -85,6 +127,7 @@ export async function fetchWidgetConfig(refCode: string): Promise<WidgetConfig> 
 export async function analyzeSkinScan(params: {
   ref_code: string;
   photo_base64: string;
+  side_images?: { left?: string; right?: string };
   product_name?: string;
   session_id?: string;
   device_type?: string;

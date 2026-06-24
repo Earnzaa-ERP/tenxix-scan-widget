@@ -40,15 +40,37 @@ export interface RecommendedProduct {
   why_it_matches: string | null;
 }
 
+export interface RegimenStepProduct {
+  id: string | null;
+  name: string;
+  price: number | null;
+  redirect_url: string | null;
+}
+
+export interface RegimenStep {
+  type: string; // CLEANSE | TREAT | MOISTURIZE | PROTECT
+  instruction: string;
+  why: string;
+  key_ingredients: string[];
+  product: RegimenStepProduct;
+}
+
+export interface Regimen {
+  morning: RegimenStep[];
+  evening: RegimenStep[];
+  tips: string[];
+}
+
 export interface ScanResult {
   outcome: 'match' | 'redirect' | 'combo';
   headline: string;
   explanation: string;
   skin_concerns: string[];
   recommended_products: RecommendedProduct[];
+  regimen?: Regimen; // present once the backend returns it; UI falls back without it
 }
 
-export type Screen = 'intro' | 'capture' | 'analyzing' | 'result' | 'bundle_order' | 'order_success';
+export type Screen = 'intro' | 'capture' | 'analyzing' | 'result' | 'routine' | 'bundle_order' | 'order_success';
 
 export interface BundleOrderPayload {
   ref_code: string;
@@ -96,6 +118,7 @@ export type AppAction =
   | { type: 'ANALYZE_SUCCESS'; result: ScanResult }
   | { type: 'ANALYZE_ERROR'; error: string }
   | { type: 'SCAN_AGAIN' }
+  | { type: 'VIEW_ROUTINE' }
   | { type: 'START_BUNDLE_ORDER' }
   | { type: 'ORDER_SUCCESS'; orderRef: string }
   | { type: 'ORDER_ERROR'; error: string }

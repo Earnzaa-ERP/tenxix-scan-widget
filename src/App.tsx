@@ -9,6 +9,7 @@ import { IntroScreen } from './screens/IntroScreen';
 import { CaptureScreen } from './screens/CaptureScreen';
 import { AnalyzingScreen } from './screens/AnalyzingScreen';
 import { ResultScreen } from './screens/ResultScreen';
+import { RoutineScreen } from './screens/RoutineScreen';
 import { BundleOrderScreen } from './screens/BundleOrderScreen';
 import { OrderSuccessScreen } from './screens/OrderSuccessScreen';
 
@@ -52,8 +53,12 @@ function reducer(state: AppState, action: AppAction): AppState {
       return state.screen === 'analyzing' ? { ...state, screen: 'result', analyzeError: action.error } : state;
     case 'SCAN_AGAIN':
       return { ...state, screen: 'capture', photoBase64: null, result: null, analyzeError: null, orderRef: null, orderError: null };
+    case 'VIEW_ROUTINE':
+      return state.screen === 'result' ? { ...state, screen: 'routine' } : state;
     case 'START_BUNDLE_ORDER':
-      return state.screen === 'result' ? { ...state, screen: 'bundle_order', orderError: null } : state;
+      return state.screen === 'result' || state.screen === 'routine'
+        ? { ...state, screen: 'bundle_order', orderError: null }
+        : state;
     case 'ORDER_SUCCESS':
       return state.screen === 'bundle_order' ? { ...state, screen: 'order_success', orderRef: action.orderRef } : state;
     case 'ORDER_ERROR':
@@ -129,8 +134,17 @@ function MainApp() {
           refCode={state.refCode}
           photoBase64={state.photoBase64}
           configProducts={state.config?.products || []}
+          hasRoutine={!!state.result?.regimen}
           onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
+          onViewRoutine={() => dispatch({ type: 'VIEW_ROUTINE' })}
           onBundleOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
+        />
+      )}
+      {state.screen === 'routine' && state.result?.regimen && (
+        <RoutineScreen
+          regimen={state.result.regimen}
+          onOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
+          onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
         />
       )}
       {state.screen === 'bundle_order' && state.result && state.config?.brand && state.refCode && (

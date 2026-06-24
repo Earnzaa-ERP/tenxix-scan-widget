@@ -11,11 +11,13 @@ interface ResultScreenProps {
   refCode: string;
   photoBase64: string | null;
   configProducts: ConfigProduct[];
+  hasRoutine?: boolean;
   onScanAgain: () => void;
+  onViewRoutine?: () => void;
   onBundleOrder: () => void;
 }
 
-export function ResultScreen({ result, error, refCode, photoBase64, configProducts, onScanAgain, onBundleOrder }: ResultScreenProps) {
+export function ResultScreen({ result, error, refCode, photoBase64, configProducts, hasRoutine, onScanAgain, onViewRoutine, onBundleOrder }: ResultScreenProps) {
   const [detailProduct, setDetailProduct] = useState<RecommendedProduct | null>(null);
 
   // Look up full product details from config by ID
@@ -96,8 +98,18 @@ export function ResultScreen({ result, error, refCode, photoBase64, configProduc
         </div>
       </div>
 
-      {/* Bundle CTA */}
-      {result.recommended_products.length >= 1 && (
+      {/* Routine CTA — when the AI returned a structured routine */}
+      {hasRoutine && onViewRoutine && (
+        <button
+          onClick={onViewRoutine}
+          className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
+        >
+          View Your Full Routine →
+        </button>
+      )}
+
+      {/* Bundle CTA — fallback when there's no structured routine */}
+      {!hasRoutine && result.recommended_products.length >= 1 && (
         <button
           onClick={onBundleOrder}
           className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"

@@ -51,8 +51,35 @@ export function ResultScreen({ result, error, refCode, photoBase64, configProduc
   }
 
   // Success state
+  const verdict = result.current_product;
+  const fitStyle = {
+    great: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', label: 'Great fit for your skin' },
+    partial: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Partly right for you' },
+    poor: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', label: 'Not the best fit for you' },
+  } as const;
+  const guidanceLine = {
+    enough: 'Good news — this is all your skin needs right now.',
+    add: 'Keep it, and add the picks below to complete your routine.',
+    replace: 'Here’s what suits your skin better — see below.',
+  } as const;
+
   return (
     <div className="flex-1 flex flex-col px-5 py-6 gap-5 overflow-y-auto">
+      {/* Verdict on the product the visitor was viewing */}
+      {verdict && (
+        <div className={`rounded-xl border ${fitStyle[verdict.fit].border} ${fitStyle[verdict.fit].bg} p-4 space-y-1.5`}>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-xs font-bold uppercase tracking-wide ${fitStyle[verdict.fit].text}`}>
+              {verdict.fit === 'great' ? '✓ ' : verdict.fit === 'poor' ? '✕ ' : '~ '}
+              {fitStyle[verdict.fit].label}
+            </span>
+          </div>
+          <h3 className="font-bold text-sm text-[var(--color-primary)]">{verdict.name}</h3>
+          {verdict.reason && <p className="text-sm text-gray-700 leading-relaxed">{verdict.reason}</p>}
+          <p className={`text-xs font-semibold ${fitStyle[verdict.fit].text}`}>{guidanceLine[verdict.guidance]}</p>
+        </div>
+      )}
+
       {/* Scan photo + headline */}
       <div className="flex gap-4 items-start">
         {photoBase64 && (

@@ -61,8 +61,16 @@ export interface Regimen {
   tips: string[];
 }
 
+export interface CurrentProductVerdict {
+  name: string;
+  fit: 'great' | 'partial' | 'poor';
+  reason: string;
+  guidance: 'enough' | 'add' | 'replace';
+}
+
 export interface ScanResult {
   outcome: 'match' | 'redirect' | 'combo';
+  current_product?: CurrentProductVerdict | null;
   headline: string;
   explanation: string;
   skin_concerns: string[];

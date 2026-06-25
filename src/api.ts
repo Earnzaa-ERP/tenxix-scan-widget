@@ -1,5 +1,5 @@
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, ANALYZE_TIMEOUT_MS } from './constants';
-import type { WidgetConfig, ScanResult, RecommendedProduct, Regimen, RegimenStep, BundleOrderPayload, BundleOrderResponse } from './types';
+import type { WidgetConfig, ScanResult, RecommendedProduct, Regimen, RegimenStep, CurrentProductVerdict, BundleOrderPayload, BundleOrderResponse } from './types';
 
 const headers = {
   apikey: SUPABASE_ANON_KEY,
@@ -43,14 +43,34 @@ function sanitizeScanResult(raw: unknown): ScanResult {
     : [];
 
   const regimen = sanitizeRegimen(r.regimen);
+  const current_product = sanitizeCurrentProduct(r.current_product);
 
   return {
     outcome,
+    ...(current_product ? { current_product } : {}),
     headline: typeof r.headline === 'string' ? r.headline : '',
     explanation: typeof r.explanation === 'string' ? r.explanation : '',
     skin_concerns,
     recommended_products,
     ...(regimen ? { regimen } : {}),
+  };
+}
+
+function sanitizeCurrentProduct(raw: unknown): CurrentProductVerdict | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.name !== 'string' || r.name.length === 0) return undefined;
+  const fit = (['great', 'partial', 'poor'] as const).includes(r.fit as CurrentProductVerdict['fit'])
+    ? (r.fit as CurrentProductVerdict['fit'])
+    : 'partial';
+  const guidance = (['enough', 'add', 'replace'] as const).includes(r.guidance as CurrentProductVerdict['guidance'])
+    ? (r.guidance as CurrentProductVerdict['guidance'])
+    : 'add';
+  return {
+    name: r.name,
+    fit,
+    reason: typeof r.reason === 'string' ? r.reason : '',
+    guidance,
   };
 }
 

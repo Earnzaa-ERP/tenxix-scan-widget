@@ -138,15 +138,16 @@ function MainApp() {
           refCode={state.refCode}
           photoBase64={state.photoBase64}
           configProducts={state.config?.products || []}
-          hasRoutine={!!state.result?.regimen}
+          hasRoutine={(state.result?.recommended_products?.length ?? 0) > 0}
           onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
           onViewRoutine={() => dispatch({ type: 'VIEW_ROUTINE' })}
           onBundleOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
         />
       )}
-      {state.screen === 'routine' && state.result?.regimen && (
+      {state.screen === 'routine' && state.result && state.refCode && (
         <RoutineScreen
-          regimen={state.result.regimen}
+          result={state.result}
+          refCode={state.refCode}
           onOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
           onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
         />

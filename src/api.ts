@@ -187,6 +187,43 @@ export async function analyzeSkinScan(params: {
   return sanitizeScanResult(data);
 }
 
+export async function generateScanRegimen(params: {
+  ref_code: string;
+  skin_concerns: string[];
+  product_names: string[];
+  product_name?: string;
+}): Promise<Regimen> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${FUNCTIONS_BASE}/generate-scan-regimen`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeout);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError('Your routine is taking too long. Please try again.', 'timeout');
+    }
+    throw new ApiError('Could not build your routine. Please try again.', 'network');
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!res.ok) {
+    throw new ApiError('Could not build your routine. Please try again.', 'ai_failure');
+  }
+
+  const data = await res.json();
+  const regimen = sanitizeRegimen(data.regimen);
+  if (!regimen) throw new ApiError('Could not build your routine. Please try again.', 'unknown');
+  return regimen;
+}
+
 export async function submitBundleOrder(payload: BundleOrderPayload): Promise<BundleOrderResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);

@@ -21,8 +21,25 @@ export function IntroScreen({ config, configLoading, configError, onStart }: Int
       </div>
 
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-[var(--color-primary)]">{BRAND.tagline}</h1>
-        <p className="text-sm text-gray-500 leading-relaxed max-w-[320px]">{BRAND.subtitle}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-primary)]/55">
+          {BRAND.eyebrow}
+        </p>
+        <h1 className="text-3xl font-extrabold text-[var(--color-primary)] leading-none">{BRAND.tagline}</h1>
+        <p className="text-sm text-gray-500 leading-relaxed max-w-[300px]">{BRAND.subtitle}</p>
+      </div>
+
+      {/* Quick value props — mirrors the app */}
+      <div className="flex justify-center gap-6">
+        {[
+          { icon: '🔬', label: 'Understand your skin' },
+          { icon: '✨', label: 'Get your routine' },
+          { icon: '🛍️', label: 'Shop what works' },
+        ].map((item) => (
+          <div key={item.label} className="flex flex-col items-center gap-1 w-[78px]">
+            <span className="text-xl">{item.icon}</span>
+            <span className="text-[11px] text-gray-500 leading-tight">{item.label}</span>
+          </div>
+        ))}
       </div>
 
       {configError && <ErrorBanner message={configError} />}

@@ -16,8 +16,9 @@ export const JPEG_QUALITY_MIN = 0.50;
 
 export const BRAND = {
   name: 'Kira',
-  tagline: 'Discover Your Perfect Skincare Routine',
-  subtitle: 'Our AI analyzes your skin in seconds and recommends the ideal products for your unique skin needs.',
+  eyebrow: 'Skin intelligence for melanin-rich skin',
+  tagline: 'Stop guessing.',
+  subtitle: 'Scan your skin. Know your concerns. Get a routine built just for you.',
   colors: {
     primary: '#560A88',
     primaryDark: '#3A0660',

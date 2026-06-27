@@ -3,7 +3,10 @@ export const SUPABASE_ANON_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lcXRkY2t5cm93eWVjaGJlcHByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzM0MTQsImV4cCI6MjA4ODMwOTQxNH0.-z96VqVNgpJd_KAT5iizTVbM_boAVbt-2xbB6P3qddE';
 export const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
 
-export const ANALYZE_TIMEOUT_MS = 15_000;
+// The analysis now returns a verdict + full AM/PM routine (+ optional side
+// images), so the AI response is larger and takes longer to generate than the
+// original flat result. Give it room before the client aborts.
+export const ANALYZE_TIMEOUT_MS = 45_000;
 export const MAX_PHOTO_BYTES = 500 * 1024;
 export const MAX_PHOTO_WIDTH = 800;
 export const MAX_PHOTO_HEIGHT = 1000;

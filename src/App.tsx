@@ -9,7 +9,6 @@ import { IntroScreen } from './screens/IntroScreen';
 import { CaptureScreen } from './screens/CaptureScreen';
 import { AnalyzingScreen } from './screens/AnalyzingScreen';
 import { ResultScreen } from './screens/ResultScreen';
-import { RoutineScreen } from './screens/RoutineScreen';
 import { BundleOrderScreen } from './screens/BundleOrderScreen';
 import { OrderSuccessScreen } from './screens/OrderSuccessScreen';
 
@@ -27,6 +26,7 @@ const initialState: AppState = {
   photoBase64: null,
   sideImagesBase64: null,
   result: null,
+  cart: {},
   analyzeError: null,
   orderRef: null,
   orderError: null,
@@ -49,17 +49,22 @@ function reducer(state: AppState, action: AppAction): AppState {
         ? { ...state, screen: 'analyzing', photoBase64: action.photoBase64, sideImagesBase64: action.sideImages ?? null, result: null, analyzeError: null }
         : state;
     case 'ANALYZE_SUCCESS':
-      return state.screen === 'analyzing' ? { ...state, screen: 'result', result: action.result } : state;
+      return state.screen === 'analyzing' ? { ...state, screen: 'result', result: action.result, cart: {} } : state;
     case 'ANALYZE_ERROR':
       return state.screen === 'analyzing' ? { ...state, screen: 'result', analyzeError: action.error } : state;
     case 'SCAN_AGAIN':
-      return { ...state, screen: 'capture', photoBase64: null, sideImagesBase64: null, result: null, analyzeError: null, orderRef: null, orderError: null };
-    case 'VIEW_ROUTINE':
-      return state.screen === 'result' ? { ...state, screen: 'routine' } : state;
+      return { ...state, screen: 'capture', photoBase64: null, sideImagesBase64: null, result: null, cart: {}, analyzeError: null, orderRef: null, orderError: null };
+    case 'CART_ADD':
+      return { ...state, cart: { ...state.cart, [action.productId]: state.cart[action.productId] ?? 1 } };
+    case 'CART_SET': {
+      const next = { ...state.cart };
+      const q = Math.max(0, Math.min(10, action.quantity));
+      if (q <= 0) delete next[action.productId];
+      else next[action.productId] = q;
+      return { ...state, cart: next };
+    }
     case 'START_BUNDLE_ORDER':
-      return state.screen === 'result' || state.screen === 'routine'
-        ? { ...state, screen: 'bundle_order', orderError: null }
-        : state;
+      return state.screen === 'result' ? { ...state, screen: 'bundle_order', orderError: null } : state;
     case 'ORDER_SUCCESS':
       return state.screen === 'bundle_order' ? { ...state, screen: 'order_success', orderRef: action.orderRef } : state;
     case 'ORDER_ERROR':
@@ -135,26 +140,19 @@ function MainApp() {
         <ResultScreen
           result={state.result}
           error={state.analyzeError}
-          refCode={state.refCode}
           photoBase64={state.photoBase64}
           configProducts={state.config?.products || []}
-          hasRoutine={(state.result?.recommended_products?.length ?? 0) > 0}
-          onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
-          onViewRoutine={() => dispatch({ type: 'VIEW_ROUTINE' })}
-          onBundleOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
-        />
-      )}
-      {state.screen === 'routine' && state.result && state.refCode && (
-        <RoutineScreen
-          result={state.result}
-          refCode={state.refCode}
-          onOrder={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
+          cart={state.cart}
+          onCartAdd={(id) => dispatch({ type: 'CART_ADD', productId: id })}
+          onCartSet={(id, qty) => dispatch({ type: 'CART_SET', productId: id, quantity: qty })}
+          onCheckout={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
           onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
         />
       )}
       {state.screen === 'bundle_order' && state.result && state.config?.brand && state.refCode && (
         <BundleOrderScreen
-          products={state.result.recommended_products}
+          products={state.result.recommended_products.filter((p) => p.id && state.cart[p.id])}
+          initialQuantities={state.cart}
           brandId={state.config.brand.id}
           refCode={state.refCode}
           sessionId={state.sessionId}

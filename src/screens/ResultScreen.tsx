@@ -4,32 +4,47 @@ import { ProductCard } from '../components/ProductCard';
 import { ProductDetailModal } from '../components/ProductDetailModal';
 import { ConcernTag } from '../components/ConcernTag';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { formatNaira } from '../lib/format';
 
 interface ResultScreenProps {
   result: ScanResult | null;
   error: string | null;
-  refCode: string;
   photoBase64: string | null;
   configProducts: ConfigProduct[];
-  hasRoutine?: boolean;
+  cart: Record<string, number>;
+  onCartAdd: (productId: string) => void;
+  onCartSet: (productId: string, qty: number) => void;
+  onCheckout: () => void;
   onScanAgain: () => void;
-  onViewRoutine?: () => void;
-  onBundleOrder: () => void;
 }
 
-export function ResultScreen({ result, error, refCode, photoBase64, configProducts, hasRoutine, onScanAgain, onViewRoutine, onBundleOrder }: ResultScreenProps) {
+const fitStyle = {
+  great: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', label: 'Great fit for your skin' },
+  partial: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Partly right for you' },
+  poor: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', label: 'Not the best fit for you' },
+} as const;
+
+export function ResultScreen({
+  result,
+  error,
+  photoBase64,
+  configProducts,
+  cart,
+  onCartAdd,
+  onCartSet,
+  onCheckout,
+  onScanAgain,
+}: ResultScreenProps) {
   const [detailProduct, setDetailProduct] = useState<RecommendedProduct | null>(null);
 
-  // Look up full product details from config by ID
   function getProductDetail(productId: string | null): ConfigProduct | null {
     if (!productId) return null;
-    return configProducts.find(p => p.id === productId) || null;
+    return configProducts.find((p) => p.id === productId) || null;
   }
 
   // Error state
   if (error || !result) {
     const isRateLimit = error?.includes('scan limit');
-
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4 text-center">
         <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
@@ -50,117 +65,107 @@ export function ResultScreen({ result, error, refCode, photoBase64, configProduc
     );
   }
 
-  // Success state
   const verdict = result.current_product;
-  const fitStyle = {
-    great: { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', label: 'Great fit for your skin' },
-    partial: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', label: 'Partly right for you' },
-    poor: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', label: 'Not the best fit for you' },
-  } as const;
-  const guidanceLine = {
-    enough: 'Good news — this is all your skin needs right now.',
-    add: 'Keep it, and add the picks below to complete your routine.',
-    replace: 'Here’s what suits your skin better — see below.',
-  } as const;
+  const products = result.recommended_products;
+
+  // Cart math
+  const qtyOf = (p: RecommendedProduct) => (p.id ? cart[p.id] ?? 0 : 0);
+  const distinctInCart = products.filter((p) => qtyOf(p) > 0).length;
+  const totalUnits = products.reduce((s, p) => s + qtyOf(p), 0);
+  const total = products.reduce((s, p) => s + (p.price ?? 0) * qtyOf(p), 0);
 
   return (
-    <div className="flex-1 flex flex-col px-5 py-6 gap-5 overflow-y-auto">
-      {/* Verdict on the product the visitor was viewing */}
-      {verdict && (
-        <div className={`rounded-xl border ${fitStyle[verdict.fit].border} ${fitStyle[verdict.fit].bg} p-4 space-y-1.5`}>
-          <div className="flex items-center gap-1.5">
+    <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+        {/* Verdict on the product they were viewing */}
+        {verdict && (
+          <div className={`rounded-xl border ${fitStyle[verdict.fit].border} ${fitStyle[verdict.fit].bg} p-4 space-y-1.5`}>
             <span className={`text-xs font-bold uppercase tracking-wide ${fitStyle[verdict.fit].text}`}>
               {verdict.fit === 'great' ? '✓ ' : verdict.fit === 'poor' ? '✕ ' : '~ '}
               {fitStyle[verdict.fit].label}
             </span>
-          </div>
-          <h3 className="font-bold text-sm text-[var(--color-primary)]">{verdict.name}</h3>
-          {verdict.reason && <p className="text-sm text-gray-700 leading-relaxed">{verdict.reason}</p>}
-          <p className={`text-xs font-semibold ${fitStyle[verdict.fit].text}`}>{guidanceLine[verdict.guidance]}</p>
-        </div>
-      )}
-
-      {/* Scan photo + headline */}
-      <div className="flex gap-4 items-start">
-        {photoBase64 && (
-          <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-primary)]/20">
-            <img
-              src={`data:image/jpeg;base64,${photoBase64}`}
-              alt="Your skin scan"
-              className="w-full h-full object-cover"
-            />
+            <h3 className="font-bold text-sm text-[var(--color-primary)]">{verdict.name}</h3>
+            {verdict.reason && <p className="text-sm text-gray-700 leading-relaxed">{verdict.reason}</p>}
           </div>
         )}
-        <div className="space-y-2 flex-1 min-w-0">
-          <h2 className="text-lg font-bold text-[var(--color-primary)] leading-tight">
-            {result.headline}
-          </h2>
-          <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
+
+        {/* Scan photo + headline */}
+        <div className="flex gap-4 items-start">
+          {photoBase64 && (
+            <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-primary)]/20">
+              <img src={`data:image/jpeg;base64,${photoBase64}`} alt="Your skin scan" className="w-full h-full object-cover" />
+            </div>
+          )}
+          <div className="space-y-2 flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-[var(--color-primary)] leading-tight">{result.headline}</h2>
+            <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
+          </div>
+        </div>
+
+        {/* Concerns */}
+        {result.skin_concerns.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {result.skin_concerns.map((concern) => (
+              <ConcernTag key={concern} label={concern} />
+            ))}
+          </div>
+        )}
+
+        {/* Recommended products */}
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Build Your Set</h3>
+            <span className="text-[11px] text-[var(--color-primary)] font-medium">Add 2+ for best results</span>
+          </div>
+          <div className="space-y-3">
+            {products.map((product, i) => (
+              <ProductCard
+                key={product.id ?? i}
+                product={product}
+                quantity={qtyOf(product)}
+                onAdd={() => product.id && onCartAdd(product.id)}
+                onSetQty={(q) => product.id && onCartSet(product.id, q)}
+                onKnowMore={() => setDetailProduct(product)}
+              />
+            ))}
+          </div>
+        </div>
+
+        <button onClick={onScanAgain} className="w-full text-center text-gray-400 text-sm underline py-1">
+          Scan Again
+        </button>
+      </div>
+
+      {/* Sticky running total + checkout */}
+      <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-3 space-y-2">
+        {distinctInCart === 1 && (
+          <p className="text-xs text-[var(--color-primary)] text-center font-medium">
+            ✨ Pair it with one more for complete results
+          </p>
+        )}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] text-gray-400">
+              {totalUnits === 0 ? 'Your cart' : `${totalUnits} item${totalUnits === 1 ? '' : 's'}`}
+            </p>
+            <p className="font-bold text-[var(--color-primary)] text-lg leading-none">{formatNaira(total)}</p>
+          </div>
+          <button
+            onClick={onCheckout}
+            disabled={distinctInCart === 0}
+            className="px-6 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100"
+          >
+            Checkout →
+          </button>
         </div>
       </div>
 
-      {/* Skin concerns */}
-      {result.skin_concerns.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {result.skin_concerns.map((concern) => (
-            <ConcernTag key={concern} label={concern} />
-          ))}
-        </div>
-      )}
-
-      {/* Recommended products */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-          Recommended For You
-        </h3>
-        <div className="space-y-3">
-          {result.recommended_products.map((product, i) => (
-            <ProductCard
-              key={product.id ?? i}
-              product={product}
-              refCode={refCode}
-              onKnowMore={() => setDetailProduct(product)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Routine CTA — when the AI returned a structured routine */}
-      {hasRoutine && onViewRoutine && (
-        <button
-          onClick={onViewRoutine}
-          className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
-        >
-          View Your Full Routine →
-        </button>
-      )}
-
-      {/* Bundle CTA — fallback when there's no structured routine */}
-      {!hasRoutine && result.recommended_products.length >= 1 && (
-        <button
-          onClick={onBundleOrder}
-          className="w-full py-3.5 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
-        >
-          {result.recommended_products.length === 1
-            ? 'Order This Product →'
-            : 'Get the Complete Package →'}
-        </button>
-      )}
-
-      {/* Scan again */}
-      <button
-        onClick={onScanAgain}
-        className="text-center text-gray-400 text-sm underline py-2"
-      >
-        Scan Again
-      </button>
-
-      {/* Know More Modal */}
       {detailProduct && (
         <ProductDetailModal
           recommended={detailProduct}
           detail={getProductDetail(detailProduct.id)}
-          refCode={refCode}
+          inCart={detailProduct.id ? (cart[detailProduct.id] ?? 0) > 0 : false}
+          onAddToCart={() => detailProduct.id && onCartAdd(detailProduct.id)}
           onClose={() => setDetailProduct(null)}
         />
       )}

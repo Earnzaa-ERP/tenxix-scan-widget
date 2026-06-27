@@ -4,27 +4,12 @@ import { formatNaira } from '../lib/format';
 interface ProductDetailModalProps {
   recommended: RecommendedProduct;
   detail: ConfigProduct | null;
-  refCode: string;
+  inCart: boolean;
+  onAddToCart: () => void;
   onClose: () => void;
 }
 
-function buildRedirectUrl(baseUrl: string, refCode: string): string {
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  return `${baseUrl}${separator}ref=${encodeURIComponent(refCode)}`;
-}
-
-export function ProductDetailModal({ recommended, detail, refCode, onClose }: ProductDetailModalProps) {
-  const hasRedirect = !!recommended.redirect_url;
-
-  function handleBuy() {
-    if (!recommended.redirect_url) return;
-    const url = buildRedirectUrl(recommended.redirect_url, refCode);
-    if (window.top) {
-      window.top.location.href = url;
-    } else {
-      window.location.href = url;
-    }
-  }
+export function ProductDetailModal({ recommended, detail, inCart, onAddToCart, onClose }: ProductDetailModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center" onClick={onClose}>
@@ -139,15 +124,18 @@ export function ProductDetailModal({ recommended, detail, refCode, onClose }: Pr
 
           {/* CTA */}
           <div className="sticky bottom-0 bg-white pt-3 pb-2">
-            {hasRedirect ? (
+            {recommended.id ? (
               <button
-                onClick={handleBuy}
+                onClick={() => {
+                  onAddToCart();
+                  onClose();
+                }}
                 className="w-full py-3.5 bg-[var(--color-primary)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
               >
-                Get Yours Now &rarr;
+                {inCart ? 'Added to Cart ✓' : 'Add to Cart'}
               </button>
             ) : (
-              <p className="text-center text-gray-400 text-sm py-2">Coming Soon</p>
+              <p className="text-center text-gray-400 text-sm py-2">Unavailable</p>
             )}
           </div>
         </div>

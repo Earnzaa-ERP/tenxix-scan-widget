@@ -7,6 +7,7 @@ import { NIGERIAN_STATES } from '../constants';
 
 interface BundleOrderScreenProps {
   products: RecommendedProduct[];
+  initialQuantities?: Record<string, number>;
   brandId: string;
   refCode: string;
   sessionId: string;
@@ -19,6 +20,7 @@ interface BundleOrderScreenProps {
 
 export function BundleOrderScreen({
   products,
+  initialQuantities,
   brandId,
   refCode,
   sessionId,
@@ -40,7 +42,9 @@ export function BundleOrderScreen({
   });
   const [submitting, setSubmitting] = useState(false);
   const [quantities, setQuantities] = useState<Record<string, number>>(() =>
-    Object.fromEntries(products.filter((p) => p.id).map((p) => [p.id as string, 1])),
+    Object.fromEntries(
+      products.filter((p) => p.id).map((p) => [p.id as string, initialQuantities?.[p.id as string] ?? 1]),
+    ),
   );
 
   const qtyOf = (id: string) => quantities[id] ?? 1;

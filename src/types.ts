@@ -78,7 +78,7 @@ export interface ScanResult {
   regimen?: Regimen; // present once the backend returns it; UI falls back without it
 }
 
-export type Screen = 'intro' | 'capture' | 'analyzing' | 'result' | 'routine' | 'bundle_order' | 'order_success';
+export type Screen = 'intro' | 'capture' | 'analyzing' | 'result' | 'bundle_order' | 'order_success';
 
 export interface BundleOrderPayload {
   ref_code: string;
@@ -112,6 +112,7 @@ export interface AppState {
   photoBase64: string | null;
   sideImagesBase64: { left?: string; right?: string } | null;
   result: ScanResult | null;
+  cart: Record<string, number>; // productId -> quantity (selected on the result page)
   analyzeError: string | null;
   orderRef: string | null;
   orderError: string | null;
@@ -128,7 +129,8 @@ export type AppAction =
   | { type: 'ANALYZE_SUCCESS'; result: ScanResult }
   | { type: 'ANALYZE_ERROR'; error: string }
   | { type: 'SCAN_AGAIN' }
-  | { type: 'VIEW_ROUTINE' }
+  | { type: 'CART_ADD'; productId: string }
+  | { type: 'CART_SET'; productId: string; quantity: number }
   | { type: 'START_BUNDLE_ORDER' }
   | { type: 'ORDER_SUCCESS'; orderRef: string }
   | { type: 'ORDER_ERROR'; error: string }

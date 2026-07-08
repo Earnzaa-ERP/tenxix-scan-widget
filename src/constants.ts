@@ -1,5 +1,10 @@
-export const SUPABASE_URL = 'https://neqtdckyrowyechbeppr.supabase.co';
+// Backend is env-configurable so one codebase powers two instances:
+//  - scan.tenxix.com  (default/fallback): the ERP project (merchant sites)
+//  - scan.kirascan.app: set VITE_SUPABASE_URL/KEY to the Tenxix Mirror project
+export const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL || 'https://neqtdckyrowyechbeppr.supabase.co';
 export const SUPABASE_ANON_KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lcXRkY2t5cm93eWVjaGJlcHByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzM0MTQsImV4cCI6MjA4ODMwOTQxNH0.-z96VqVNgpJd_KAT5iizTVbM_boAVbt-2xbB6P3qddE';
 export const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
 
@@ -44,4 +49,6 @@ export const NIGERIAN_STATES = [
   'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
 ] as const;
 
-export const APP_DOWNLOAD_URL = '#'; // Placeholder — swap with real store link when available
+export const APP_DOWNLOAD_URL =
+  import.meta.env.VITE_APP_DOWNLOAD_URL ||
+  'https://play.google.com/store/apps/details?id=com.tenxix.mirror';

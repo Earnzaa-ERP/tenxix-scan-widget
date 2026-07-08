@@ -1,11 +1,24 @@
-// Backend is env-configurable so one codebase powers two instances:
-//  - scan.tenxix.com  (default/fallback): the ERP project (merchant sites)
-//  - scan.kirascan.app: set VITE_SUPABASE_URL/KEY to the Tenxix Mirror project
-export const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL || 'https://neqtdckyrowyechbeppr.supabase.co';
-export const SUPABASE_ANON_KEY =
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lcXRkY2t5cm93eWVjaGJlcHByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzM0MTQsImV4cCI6MjA4ODMwOTQxNH0.-z96VqVNgpJd_KAT5iizTVbM_boAVbt-2xbB6P3qddE';
+// One deployment, two backends chosen at RUNTIME (anon keys are public):
+//  - default  → ERP project (merchant embeds, scan.tenxix.com/?ref=...)
+//  - ?scan=kira → Tenxix Mirror project (Kira's own catalogue, kirascan.app)
+// A build-time env (VITE_SUPABASE_URL/KEY) can still override the default.
+const _scanParams = new URLSearchParams(window.location.search);
+const _useKira = _scanParams.get('scan') === 'kira';
+
+const KIRA_BACKEND = {
+  url: 'https://ctvahsuhyuwgmjjnrhbt.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0dmFoc3VoeXV3Z21qam5yaGJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwNzU3MDUsImV4cCI6MjA5MTY1MTcwNX0.FSywkUZUS4oRxePdnYgEVxuOayv6_l9MdwAvuWDZ9BI',
+};
+const ERP_BACKEND = {
+  url: import.meta.env.VITE_SUPABASE_URL || 'https://neqtdckyrowyechbeppr.supabase.co',
+  key:
+    import.meta.env.VITE_SUPABASE_ANON_KEY ||
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5lcXRkY2t5cm93eWVjaGJlcHByIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MzM0MTQsImV4cCI6MjA4ODMwOTQxNH0.-z96VqVNgpJd_KAT5iizTVbM_boAVbt-2xbB6P3qddE',
+};
+
+const _backend = _useKira ? KIRA_BACKEND : ERP_BACKEND;
+export const SUPABASE_URL = _backend.url;
+export const SUPABASE_ANON_KEY = _backend.key;
 export const FUNCTIONS_BASE = `${SUPABASE_URL}/functions/v1`;
 
 // The analysis now returns a verdict + full AM/PM routine (+ optional side

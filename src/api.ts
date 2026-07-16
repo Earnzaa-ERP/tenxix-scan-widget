@@ -187,6 +187,37 @@ export async function analyzeSkinScan(params: {
   return sanitizeScanResult(data);
 }
 
+// Generates the AM/PM regimen (second, text-only AI call). Runs while the
+// formulation animation plays in general mode. FAIL-SOFT by design: any
+// error returns null and the reveal proceeds with recommendations only —
+// a routine is a bonus, never a blocker.
+export async function generateScanRegimen(params: {
+  ref_code: string;
+  skin_concerns: string[];
+  product_names: string[];
+}): Promise<Regimen | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(`${FUNCTIONS_BASE}/generate-scan-regimen`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(params),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (!res.ok) return null;
+    const data = await res.json();
+    return sanitizeRegimen(data.regimen) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function submitBundleOrder(payload: BundleOrderPayload): Promise<BundleOrderResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);

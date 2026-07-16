@@ -4,6 +4,7 @@ import { ProductCard } from '../components/ProductCard';
 import { ProductDetailModal } from '../components/ProductDetailModal';
 import { ConcernTag } from '../components/ConcernTag';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { RegimenSection } from '../components/RegimenSection';
 import { formatNaira } from '../lib/format';
 
 interface ResultScreenProps {
@@ -12,6 +13,12 @@ interface ResultScreenProps {
   photoBase64: string | null;
   configProducts: ConfigProduct[];
   cart: Record<string, number>;
+  /** General mode shows the analysis first (revealed=false) with a
+   *  floating CTA; tapping it plays the formulation animation and then
+   *  re-enters this screen with revealed=true. Product mode is always
+   *  revealed. */
+  revealed: boolean;
+  onReveal: () => void;
   onCartAdd: (productId: string) => void;
   onCartSet: (productId: string, qty: number) => void;
   onCheckout: () => void;
@@ -30,6 +37,8 @@ export function ResultScreen({
   photoBase64,
   configProducts,
   cart,
+  revealed,
+  onReveal,
   onCartAdd,
   onCartSet,
   onCheckout,
@@ -111,54 +120,72 @@ export function ResultScreen({
           </div>
         )}
 
-        {/* Recommended products */}
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Build Your Set</h3>
-            <span className="text-[11px] text-[var(--color-primary)] font-medium">Add 2+ for best results</span>
+        {/* Recommended products — hidden pre-reveal in general mode */}
+        {revealed && (
+          <div className="space-y-2">
+            <div className="flex items-baseline justify-between">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Build Your Set</h3>
+              <span className="text-[11px] text-[var(--color-primary)] font-medium">Add 2+ for best results</span>
+            </div>
+            <div className="space-y-3">
+              {products.map((product, i) => (
+                <ProductCard
+                  key={product.id ?? i}
+                  product={product}
+                  quantity={qtyOf(product)}
+                  onAdd={() => product.id && onCartAdd(product.id)}
+                  onSetQty={(q) => product.id && onCartSet(product.id, q)}
+                  onKnowMore={() => setDetailProduct(product)}
+                />
+              ))}
+            </div>
           </div>
-          <div className="space-y-3">
-            {products.map((product, i) => (
-              <ProductCard
-                key={product.id ?? i}
-                product={product}
-                quantity={qtyOf(product)}
-                onAdd={() => product.id && onCartAdd(product.id)}
-                onSetQty={(q) => product.id && onCartSet(product.id, q)}
-                onKnowMore={() => setDetailProduct(product)}
-              />
-            ))}
-          </div>
-        </div>
+        )}
+
+        {/* AM/PM routine (general mode, arrives with the reveal) */}
+        {revealed && result.regimen && <RegimenSection regimen={result.regimen} />}
 
         <button onClick={onScanAgain} className="w-full text-center text-gray-400 text-sm underline py-1">
           Scan Again
         </button>
       </div>
 
-      {/* Sticky running total + checkout */}
-      <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-3 space-y-2">
-        {distinctInCart === 1 && (
-          <p className="text-xs text-[var(--color-primary)] text-center font-medium">
-            ✨ Pair it with one more for complete results
-          </p>
-        )}
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[11px] text-gray-400">
-              {totalUnits === 0 ? 'Your cart' : `${totalUnits} item${totalUnits === 1 ? '' : 's'}`}
-            </p>
-            <p className="font-bold text-[var(--color-primary)] text-lg leading-none">{formatNaira(total)}</p>
-          </div>
+      {/* Bottom bar: pre-reveal it's the floating recommendations CTA —
+          always on screen, no scrolling needed. Post-reveal it's the
+          running total + checkout. */}
+      {!revealed ? (
+        <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-3">
           <button
-            onClick={onCheckout}
-            disabled={distinctInCart === 0}
-            className="px-6 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100"
+            onClick={onReveal}
+            className="w-full py-4 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-bold text-sm active:scale-[0.98] transition-transform shadow-lg"
           >
-            Checkout →
+            ✨ Get My Product Recommendations
           </button>
         </div>
-      </div>
+      ) : (
+        <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-3 space-y-2">
+          {distinctInCart === 1 && (
+            <p className="text-xs text-[var(--color-primary)] text-center font-medium">
+              ✨ Pair it with one more for complete results
+            </p>
+          )}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[11px] text-gray-400">
+                {totalUnits === 0 ? 'Your cart' : `${totalUnits} item${totalUnits === 1 ? '' : 's'}`}
+              </p>
+              <p className="font-bold text-[var(--color-primary)] text-lg leading-none">{formatNaira(total)}</p>
+            </div>
+            <button
+              onClick={onCheckout}
+              disabled={distinctInCart === 0}
+              className="px-6 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100"
+            >
+              Checkout →
+            </button>
+          </div>
+        </div>
+      )}
 
       {detailProduct && (
         <ProductDetailModal

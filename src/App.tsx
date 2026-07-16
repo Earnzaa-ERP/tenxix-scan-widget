@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer } from 'react';
 import type { AppState, AppAction, ScanResult } from './types';
-import { fetchWidgetConfig } from './api';
+import { fetchWidgetConfig, generateScanRegimen } from './api';
 import { generateSessionId, detectDeviceType } from './lib/session';
 import { Layout } from './components/Layout';
 import { AnalyzingAnimation } from './components/AnalyzingAnimation';
@@ -15,11 +15,20 @@ import { OrderSuccessScreen } from './screens/OrderSuccessScreen';
 const params = new URLSearchParams(window.location.search);
 const refCode = params.get('ref') || 'direct';
 const productName = params.get('product');
+// Campaign tracking code — same ?cmp= the buyers put in every ad URL.
+// Optional; passed through to the order for campaign-level attribution.
+const cmp = params.get('cmp');
+
+// General mode = no product param: the button lives on a brand page, not
+// a product page. Analysis shows first; recommendations reveal on tap.
+const generalMode = !productName;
 
 const initialState: AppState = {
   screen: 'intro',
   refCode,
   productName,
+  cmp,
+  revealed: !generalMode,
   config: null,
   configLoading: true,
   configError: null,
@@ -53,7 +62,18 @@ function reducer(state: AppState, action: AppAction): AppState {
     case 'ANALYZE_ERROR':
       return state.screen === 'analyzing' ? { ...state, screen: 'result', analyzeError: action.error } : state;
     case 'SCAN_AGAIN':
-      return { ...state, screen: 'capture', photoBase64: null, sideImagesBase64: null, result: null, cart: {}, analyzeError: null, orderRef: null, orderError: null };
+      return { ...state, screen: 'capture', photoBase64: null, sideImagesBase64: null, result: null, cart: {}, analyzeError: null, orderRef: null, orderError: null, revealed: !generalMode };
+    case 'REVEAL_START':
+      return state.screen === 'result' ? { ...state, screen: 'formulating' } : state;
+    case 'REVEAL_DONE':
+      return state.screen === 'formulating'
+        ? {
+            ...state,
+            screen: 'result',
+            revealed: true,
+            result: state.result && action.regimen ? { ...state.result, regimen: action.regimen } : state.result,
+          }
+        : state;
     case 'CART_ADD':
       return { ...state, cart: { ...state.cart, [action.productId]: state.cart[action.productId] ?? 1 } };
     case 'CART_SET': {
@@ -109,6 +129,27 @@ function MainApp() {
     dispatch({ type: 'ANALYZE_ERROR', error });
   }, []);
 
+  // General-mode reveal: the formulation animation plays while the AM/PM
+  // regimen is generated. The animation gets a minimum on-screen time so
+  // it never flashes; the regimen call is fail-soft (null → reveal with
+  // recommendations only).
+  useEffect(() => {
+    if (state.screen !== 'formulating') return;
+    let cancelled = false;
+    const minDelay = new Promise((r) => setTimeout(r, 2800));
+    const regimenPromise = state.result && state.refCode
+      ? generateScanRegimen({
+          ref_code: state.refCode,
+          skin_concerns: state.result.skin_concerns,
+          product_names: state.result.recommended_products.map((p) => p.name),
+        })
+      : Promise.resolve(null);
+    Promise.all([regimenPromise, minDelay]).then(([regimen]) => {
+      if (!cancelled) dispatch({ type: 'REVEAL_DONE', regimen: regimen ?? undefined });
+    });
+    return () => { cancelled = true; };
+  }, [state.screen]);
+
   return (
     <Layout>
       {state.screen === 'intro' && (
@@ -143,18 +184,22 @@ function MainApp() {
           photoBase64={state.photoBase64}
           configProducts={state.config?.products || []}
           cart={state.cart}
+          revealed={state.revealed}
+          onReveal={() => dispatch({ type: 'REVEAL_START' })}
           onCartAdd={(id) => dispatch({ type: 'CART_ADD', productId: id })}
           onCartSet={(id, qty) => dispatch({ type: 'CART_SET', productId: id, quantity: qty })}
           onCheckout={() => dispatch({ type: 'START_BUNDLE_ORDER' })}
           onScanAgain={() => dispatch({ type: 'SCAN_AGAIN' })}
         />
       )}
+      {state.screen === 'formulating' && <FormulationAnimation />}
       {state.screen === 'bundle_order' && state.result && state.config?.brand && state.refCode && (
         <BundleOrderScreen
           products={state.result.recommended_products.filter((p) => p.id && state.cart[p.id])}
           initialQuantities={state.cart}
           brandId={state.config.brand.id}
           refCode={state.refCode}
+          cmp={state.cmp}
           sessionId={state.sessionId}
           deviceType={state.deviceType}
           error={state.orderError}

@@ -10,6 +10,7 @@ interface BundleOrderScreenProps {
   initialQuantities?: Record<string, number>;
   brandId: string;
   refCode: string;
+  cmp?: string | null;
   sessionId: string;
   deviceType: string;
   error: string | null;
@@ -23,6 +24,7 @@ export function BundleOrderScreen({
   initialQuantities,
   brandId,
   refCode,
+  cmp,
   sessionId,
   deviceType,
   error,
@@ -74,6 +76,7 @@ export function BundleOrderScreen({
     try {
       const res = await submitBundleOrder({
         ref_code: refCode,
+        ...(cmp ? { cmp } : {}),
         brand_id: brandId,
         product_ids: items.map((it) => it.product_id),
         items,

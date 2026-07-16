@@ -78,10 +78,16 @@ export interface ScanResult {
   regimen?: Regimen; // present once the backend returns it; UI falls back without it
 }
 
-export type Screen = 'intro' | 'capture' | 'analyzing' | 'result' | 'bundle_order' | 'order_success';
+// 'formulating' = general-mode interstitial: the formulation animation
+// plays while the AM/PM regimen is generated, then recommendations reveal.
+export type Screen = 'intro' | 'capture' | 'analyzing' | 'result' | 'formulating' | 'bundle_order' | 'order_success';
 
 export interface BundleOrderPayload {
   ref_code: string;
+  /** Campaign tracking code (?cmp= on the embed URL) — attributes the
+   *  order to the buyer's campaign for MER / product P&L, like the
+   *  order forms. Optional; ref_code alone still attributes the buyer. */
+  cmp?: string;
   brand_id: string;
   product_ids: string[];
   items?: { product_id: string; quantity: number }[];
@@ -106,6 +112,12 @@ export interface AppState {
   screen: Screen;
   refCode: string | null;
   productName: string | null;
+  /** Campaign tracking code from ?cmp= — passed through to the order. */
+  cmp: string | null;
+  /** General mode (no product param): recommendations stay hidden until
+   *  the customer taps the floating "Get My Product Recommendations"
+   *  button. Product mode reveals everything at once (revealed=true). */
+  revealed: boolean;
   config: WidgetConfig | null;
   configLoading: boolean;
   configError: string | null;
@@ -134,4 +146,6 @@ export type AppAction =
   | { type: 'START_BUNDLE_ORDER' }
   | { type: 'ORDER_SUCCESS'; orderRef: string }
   | { type: 'ORDER_ERROR'; error: string }
-  | { type: 'BACK_TO_RESULT' };
+  | { type: 'BACK_TO_RESULT' }
+  | { type: 'REVEAL_START' }
+  | { type: 'REVEAL_DONE'; regimen?: Regimen };

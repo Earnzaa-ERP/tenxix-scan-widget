@@ -61,6 +61,28 @@ export interface Regimen {
   tips: string[];
 }
 
+// Full skin report (app-parity rubric, 2026-07-18). Scores are 0-100,
+// clamped server-side; bands/colors are derived client-side so both
+// surfaces read the same thresholds.
+export type MetricKey = 'hydration' | 'pigmentation' | 'pores' | 'wrinkles' | 'elasticity' | 'texture' | 'radiance';
+
+export interface ReportConcern {
+  name: string;
+  severity: 'mild' | 'moderate' | 'significant';
+  detail: string;
+}
+
+export interface SkinReport {
+  overall_score: number | null;
+  skin_type: string | null;
+  fitzpatrick: number | null;
+  estimated_age: number | null;
+  metrics: Partial<Record<MetricKey, number | null>>;
+  summary: string;
+  concerns: ReportConcern[];
+  strengths: string[];
+}
+
 export interface CurrentProductVerdict {
   name: string;
   fit: 'great' | 'partial' | 'poor';
@@ -76,6 +98,7 @@ export interface ScanResult {
   skin_concerns: string[];
   recommended_products: RecommendedProduct[];
   regimen?: Regimen; // present once the backend returns it; UI falls back without it
+  report?: SkinReport; // full app-parity report; UI falls back to headline view without it
 }
 
 // 'formulating' = general-mode interstitial: the formulation animation

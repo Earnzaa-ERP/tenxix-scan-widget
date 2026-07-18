@@ -1,5 +1,5 @@
 import { FUNCTIONS_BASE, SUPABASE_ANON_KEY, ANALYZE_TIMEOUT_MS } from './constants';
-import type { WidgetConfig, ScanResult, RecommendedProduct, Regimen, RegimenStep, CurrentProductVerdict, BundleOrderPayload, BundleOrderResponse } from './types';
+import type { WidgetConfig, ScanResult, RecommendedProduct, Regimen, RegimenStep, CurrentProductVerdict, BundleOrderPayload, BundleOrderResponse, SkinReport, ReportConcern, MetricKey } from './types';
 
 const headers = {
   apikey: SUPABASE_ANON_KEY,
@@ -44,6 +44,7 @@ function sanitizeScanResult(raw: unknown): ScanResult {
 
   const regimen = sanitizeRegimen(r.regimen);
   const current_product = sanitizeCurrentProduct(r.current_product);
+  const report = sanitizeReport(r.report);
 
   return {
     outcome,
@@ -53,6 +54,54 @@ function sanitizeScanResult(raw: unknown): ScanResult {
     skin_concerns,
     recommended_products,
     ...(regimen ? { regimen } : {}),
+    ...(report ? { report } : {}),
+  };
+}
+
+const METRIC_KEYS: MetricKey[] = ['hydration', 'pigmentation', 'pores', 'wrinkles', 'elasticity', 'texture', 'radiance'];
+
+function sanitizeReport(raw: unknown): SkinReport | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const r = raw as Record<string, unknown>;
+
+  const score = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(100, Math.round(v))) : null;
+
+  const metricsRaw = (r.metrics && typeof r.metrics === 'object' ? r.metrics : {}) as Record<string, unknown>;
+  const metrics: Partial<Record<MetricKey, number | null>> = {};
+  for (const k of METRIC_KEYS) metrics[k] = score(metricsRaw[k]);
+
+  const concerns: ReportConcern[] = Array.isArray(r.concerns)
+    ? r.concerns
+        .filter((c): c is Record<string, unknown> => !!c && typeof c === 'object' && typeof (c as Record<string, unknown>).name === 'string')
+        .map((c) => ({
+          name: c.name as string,
+          severity: (['mild', 'moderate', 'significant'] as const).includes(c.severity as ReportConcern['severity'])
+            ? (c.severity as ReportConcern['severity'])
+            : 'mild',
+          detail: typeof c.detail === 'string' ? c.detail : '',
+        }))
+    : [];
+
+  const overall = score(r.overall_score);
+  // A report with no score AND no summary is useless — fall back to the
+  // simple headline view rather than rendering an empty shell.
+  const summary = typeof r.summary === 'string' ? r.summary : '';
+  if (overall === null && summary.length === 0) return undefined;
+
+  return {
+    overall_score: overall,
+    skin_type: typeof r.skin_type === 'string' ? r.skin_type : null,
+    fitzpatrick: typeof r.fitzpatrick === 'number' && Number.isFinite(r.fitzpatrick)
+      ? Math.max(1, Math.min(6, Math.round(r.fitzpatrick)))
+      : null,
+    estimated_age: typeof r.estimated_age === 'number' && Number.isFinite(r.estimated_age)
+      ? Math.round(r.estimated_age)
+      : null,
+    metrics,
+    summary,
+    concerns,
+    strengths: Array.isArray(r.strengths) ? r.strengths.filter((s): s is string => typeof s === 'string' && s.length > 0) : [],
   };
 }
 

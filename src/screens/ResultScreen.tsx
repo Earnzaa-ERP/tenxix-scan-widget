@@ -5,6 +5,7 @@ import { ProductDetailModal } from '../components/ProductDetailModal';
 import { ConcernTag } from '../components/ConcernTag';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { RegimenSection } from '../components/RegimenSection';
+import { SkinReportSection } from '../components/SkinReportSection';
 import { formatNaira } from '../lib/format';
 
 interface ResultScreenProps {
@@ -98,26 +99,34 @@ export function ResultScreen({
           </div>
         )}
 
-        {/* Scan photo + headline */}
-        <div className="flex gap-4 items-start">
-          {photoBase64 && (
-            <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-primary)]/20">
-              <img src={`data:image/jpeg;base64,${photoBase64}`} alt="Your skin scan" className="w-full h-full object-cover" />
+        {/* Full app-parity report when the backend returns it; otherwise
+            the original compact headline + concern-tags view. */}
+        {result.report ? (
+          <SkinReportSection report={result.report} photoBase64={photoBase64} />
+        ) : (
+          <>
+            {/* Scan photo + headline */}
+            <div className="flex gap-4 items-start">
+              {photoBase64 && (
+                <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-primary)]/20">
+                  <img src={`data:image/jpeg;base64,${photoBase64}`} alt="Your skin scan" className="w-full h-full object-cover" />
+                </div>
+              )}
+              <div className="space-y-2 flex-1 min-w-0">
+                <h2 className="text-lg font-bold text-[var(--color-primary)] leading-tight">{result.headline}</h2>
+                <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
+              </div>
             </div>
-          )}
-          <div className="space-y-2 flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-[var(--color-primary)] leading-tight">{result.headline}</h2>
-            <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
-          </div>
-        </div>
 
-        {/* Concerns */}
-        {result.skin_concerns.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {result.skin_concerns.map((concern) => (
-              <ConcernTag key={concern} label={concern} />
-            ))}
-          </div>
+            {/* Concerns */}
+            {result.skin_concerns.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {result.skin_concerns.map((concern) => (
+                  <ConcernTag key={concern} label={concern} />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Recommended products — hidden pre-reveal in general mode */}

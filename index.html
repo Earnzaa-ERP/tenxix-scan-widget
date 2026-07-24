@@ -11,6 +11,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- ERP pixel bridge: reads forwarded ?cmp=/fbclid, injects the buyer's pixel,
+         and exposes window.erpBridge.trackEvent (no-ops if no cmp/pixel). -->
+    <script src="https://tenxix.com/assets/js/erp-bridge.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

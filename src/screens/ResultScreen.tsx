@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ScanResult, ConfigProduct, RecommendedProduct } from '../types';
+import { track } from '../lib/bridge';
 import { ProductCard } from '../components/ProductCard';
 import { ProductDetailModal } from '../components/ProductDetailModal';
 import { ConcernTag } from '../components/ConcernTag';
@@ -46,6 +47,15 @@ export function ResultScreen({
   onScanAgain,
 }: ResultScreenProps) {
   const [detailProduct, setDetailProduct] = useState<RecommendedProduct | null>(null);
+
+  // Fire the pixel ViewContent once, when a successful scan result is shown.
+  const viewFired = useRef(false);
+  useEffect(() => {
+    if (result && !error && !viewFired.current) {
+      viewFired.current = true;
+      track('ViewContent', { content_type: 'product', currency: 'NGN' });
+    }
+  }, [result, error]);
 
   function getProductDetail(productId: string | null): ConfigProduct | null {
     if (!productId) return null;

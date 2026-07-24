@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { RecommendedProduct } from '../types';
 import { submitBundleOrder } from '../api';
+import { track } from '../lib/bridge';
 import { formatNaira } from '../lib/format';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { NIGERIAN_STATES } from '../constants';
@@ -56,6 +57,12 @@ export function BundleOrderScreen({
     .filter((p) => p.id)
     .map((p) => ({ product_id: p.id as string, quantity: qtyOf(p.id as string) }));
 
+  // Pixel: checkout opened.
+  useEffect(() => {
+    track('InitiateCheckout', { value: total, currency: 'NGN', num_items: totalUnits });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function setQty(id: string, delta: number) {
     setQuantities((q) => ({ ...q, [id]: Math.max(1, Math.min(10, (q[id] ?? 1) + delta)) }));
   }
@@ -91,6 +98,8 @@ export function BundleOrderScreen({
         session_id: sessionId,
         device_type: deviceType,
       });
+      // Pixel: purchase confirmed (browser-side; CAPI also fires if the pixel has a token).
+      track('Purchase', { value: total, currency: 'NGN', num_items: totalUnits, order_ref: res.order_ref });
       onSuccess(res.order_ref);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');

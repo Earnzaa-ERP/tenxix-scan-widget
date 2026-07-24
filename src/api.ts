@@ -49,6 +49,7 @@ function sanitizeScanResult(raw: unknown): ScanResult {
   return {
     outcome,
     ...(current_product ? { current_product } : {}),
+    ...(typeof r.headline_finding === 'string' && r.headline_finding ? { headline_finding: r.headline_finding } : {}),
     headline: typeof r.headline === 'string' ? r.headline : '',
     explanation: typeof r.explanation === 'string' ? r.explanation : '',
     skin_concerns,

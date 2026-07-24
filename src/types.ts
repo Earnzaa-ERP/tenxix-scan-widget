@@ -93,6 +93,7 @@ export interface CurrentProductVerdict {
 export interface ScanResult {
   outcome: 'match' | 'redirect' | 'combo';
   current_product?: CurrentProductVerdict | null;
+  headline_finding?: string; // root-cause insight shown as the hero at the top
   headline: string;
   explanation: string;
   skin_concerns: string[];

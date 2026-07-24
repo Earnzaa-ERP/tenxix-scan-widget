@@ -87,6 +87,16 @@ export function ResultScreen({
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+        {/* Headline finding — the root-cause insight, first thing they read */}
+        {result.headline_finding && (
+          <div className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] p-4 text-white">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-accent)] mb-1.5">
+              Headline finding
+            </p>
+            <p className="text-[15px] font-semibold leading-snug">{result.headline_finding}</p>
+          </div>
+        )}
+
         {/* Verdict on the product they were viewing */}
         {verdict && (
           <div className={`rounded-xl border ${fitStyle[verdict.fit].border} ${fitStyle[verdict.fit].bg} p-4 space-y-1.5`}>

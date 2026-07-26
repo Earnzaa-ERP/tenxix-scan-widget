@@ -154,8 +154,8 @@ export function ResultScreen({
   );
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+    <div className="relative flex-1 flex flex-col min-h-0">
+      <div ref={scrollRef} className={`flex-1 overflow-y-auto px-5 py-6 space-y-5 ${revealed ? 'pb-28' : ''}`}>
         {/* Headline finding — the root-cause insight, first thing they read */}
         {result.headline_finding && (
           <div className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] p-4 text-white">
@@ -225,10 +225,8 @@ export function ResultScreen({
         </button>
       </div>
 
-      {/* Bottom bar: pre-reveal it's the floating recommendations CTA —
-          always on screen, no scrolling needed. Post-reveal it's the
-          running total + checkout. */}
-      {!revealed ? (
+      {/* Pre-reveal: the recommendations CTA sits in the flow at the bottom. */}
+      {!revealed && (
         <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-3">
           <button
             onClick={onReveal}
@@ -237,28 +235,38 @@ export function ResultScreen({
             ✨ Get My Product Recommendations
           </button>
         </div>
-      ) : (
-        <div className="shrink-0 border-t border-gray-100 bg-white px-5 py-3 space-y-2">
+      )}
+
+      {/* Post-reveal: the running total + checkout floats over the content as a
+          pill — always in reach, without pinning a full bar to the edge. The
+          wrapper is click-through; only the pill itself is interactive. */}
+      {revealed && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 px-4 pb-4">
           {distinctInCart === 1 && (
-            <p className="text-xs text-[var(--color-primary)] text-center font-medium">
-              ✨ Pair it with one more for complete results
-            </p>
-          )}
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[11px] text-gray-400">
-                {totalUnits === 0 ? 'Your cart' : `${totalUnits} item${totalUnits === 1 ? '' : 's'}`}
-              </p>
-              <p className="font-bold text-[var(--color-primary)] text-lg leading-none">{formatNaira(total)}</p>
+            <div className="flex justify-center mb-2">
+              <span className="pointer-events-auto text-[11px] font-medium text-[var(--color-primary)] bg-white/95 backdrop-blur px-3 py-1 rounded-full shadow-md border border-gray-100">
+                ✨ Pair it with one more for complete results
+              </span>
             </div>
-            <button
-              onClick={onCheckout}
-              disabled={distinctInCart === 0}
-              className="px-6 py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100"
-            >
-              Checkout →
-            </button>
-          </div>
+          )}
+          <button
+            onClick={onCheckout}
+            disabled={distinctInCart === 0}
+            className="pointer-events-auto w-full flex items-center justify-between gap-3 pl-5 pr-3 py-3 rounded-2xl bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white shadow-[0_12px_32px_-8px_rgba(86,10,136,0.55)] active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100 disabled:shadow-none"
+          >
+            <span className="flex flex-col items-start leading-tight text-left">
+              <span className="text-[11px] opacity-80">
+                {totalUnits === 0 ? 'Your cart' : `${totalUnits} item${totalUnits === 1 ? '' : 's'}`}
+              </span>
+              <span className="font-bold text-lg leading-none">{formatNaira(total)}</span>
+            </span>
+            <span className="flex items-center gap-1 font-semibold text-sm bg-white/15 pl-4 pr-3 py-2 rounded-xl">
+              Checkout
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </span>
+          </button>
         </div>
       )}
 

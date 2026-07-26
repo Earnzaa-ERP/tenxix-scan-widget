@@ -1,8 +1,26 @@
 import { APP_DOWNLOAD_URL } from '../constants';
+import { track } from '../lib/bridge';
 
 interface OrderSuccessScreenProps {
   orderRef: string | null;
   onScanAgain: () => void;
+}
+
+// The widget runs inside an iframe, usually opened from Meta's in-app browser
+// (Facebook/Instagram webview) — which silently blocks target="_blank" popups
+// from iframes. Navigating the TOP window on a user tap is permitted and, on
+// Android, hands the Play Store URL straight to the Play Store app. Popup
+// first (keeps the page alive in normal browsers), top-navigation fallback.
+function openAppStore() {
+  track('AppDownloadClick', { content_name: 'order_success' });
+  const win = window.open(APP_DOWNLOAD_URL, '_blank', 'noopener,noreferrer');
+  if (!win) {
+    try {
+      (window.top ?? window).location.href = APP_DOWNLOAD_URL;
+    } catch {
+      window.location.href = APP_DOWNLOAD_URL;
+    }
+  }
 }
 
 export function OrderSuccessScreen({ orderRef, onScanAgain }: OrderSuccessScreenProps) {
@@ -33,18 +51,17 @@ export function OrderSuccessScreen({ orderRef, onScanAgain }: OrderSuccessScreen
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
           </svg>
         </div>
-        <h3 className="font-bold text-base">Track your progress in the Kira app</h3>
+        <h3 className="font-bold text-base">Your routine lives in the Kira app</h3>
         <p className="text-xs text-white/80 leading-relaxed">
-          Re-scan weekly and watch your concern scores improve — plus order tracking and skin tips.
+          Scan weekly, watch your scores improve, and reorder in one tap — routines that adapt as your skin gets better. Free.
         </p>
-        <a
-          href={APP_DOWNLOAD_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={openAppStore}
           className="block w-full py-2.5 bg-white text-[var(--color-primary)] rounded-lg font-semibold text-sm text-center active:scale-[0.98] transition-transform"
         >
-          Download Now
-        </a>
+          Get the Kira app — free
+        </button>
       </div>
 
       {/* Scan again */}

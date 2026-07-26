@@ -57,6 +57,13 @@ export function ResultScreen({
     }
   }, [result, error]);
 
+  // After the reveal, snap the scroll back to the top so the recommendations
+  // are the first thing seen — never buried under the analysis.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (revealed) scrollRef.current?.scrollTo({ top: 0 });
+  }, [revealed]);
+
   function getProductDetail(productId: string | null): ConfigProduct | null {
     if (!productId) return null;
     return configProducts.find((p) => p.id === productId) || null;
@@ -94,9 +101,61 @@ export function ResultScreen({
   const totalUnits = products.reduce((s, p) => s + qtyOf(p), 0);
   const total = products.reduce((s, p) => s + (p.price ?? 0) * qtyOf(p), 0);
 
+  // The analysis view — full app-parity report when the backend returns it,
+  // otherwise the compact headline + concern-tags. Rendered expanded before
+  // the reveal; collapsed into an accordion after, so it never buries the recs.
+  const analysisBlock = result.report ? (
+    <SkinReportSection report={result.report} photoBase64={photoBase64} />
+  ) : (
+    <>
+      {/* Scan photo + headline */}
+      <div className="flex gap-4 items-start">
+        {photoBase64 && (
+          <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-primary)]/20">
+            <img src={`data:image/jpeg;base64,${photoBase64}`} alt="Your skin scan" className="w-full h-full object-cover" />
+          </div>
+        )}
+        <div className="space-y-2 flex-1 min-w-0">
+          <h2 className="text-lg font-bold text-[var(--color-primary)] leading-tight">{result.headline}</h2>
+          <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
+        </div>
+      </div>
+
+      {/* Concerns */}
+      {result.skin_concerns.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {result.skin_concerns.map((concern) => (
+            <ConcernTag key={concern} label={concern} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+
+  const productsBlock = (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Your Recommendations</h3>
+        <span className="text-[11px] text-[var(--color-primary)] font-medium">Add 2+ for best results</span>
+      </div>
+      <div className="space-y-3">
+        {products.map((product, i) => (
+          <ProductCard
+            key={product.id ?? i}
+            product={product}
+            quantity={qtyOf(product)}
+            onAdd={() => product.id && onCartAdd(product.id)}
+            onSetQty={(q) => product.id && onCartSet(product.id, q)}
+            onKnowMore={() => setDetailProduct(product)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
         {/* Headline finding — the root-cause insight, first thing they read */}
         {result.headline_finding && (
           <div className="rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] p-4 text-white">
@@ -119,60 +178,34 @@ export function ResultScreen({
           </div>
         )}
 
-        {/* Full app-parity report when the backend returns it; otherwise
-            the original compact headline + concern-tags view. */}
-        {result.report ? (
-          <SkinReportSection report={result.report} photoBase64={photoBase64} />
+        {!revealed ? (
+          /* Pre-reveal (general mode): the full analysis is the whole screen,
+             so they read it first, then tap the floating CTA below. */
+          analysisBlock
         ) : (
           <>
-            {/* Scan photo + headline */}
-            <div className="flex gap-4 items-start">
-              {photoBase64 && (
-                <div className="shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 border-[var(--color-primary)]/20">
-                  <img src={`data:image/jpeg;base64,${photoBase64}`} alt="Your skin scan" className="w-full h-full object-cover" />
-                </div>
-              )}
-              <div className="space-y-2 flex-1 min-w-0">
-                <h2 className="text-lg font-bold text-[var(--color-primary)] leading-tight">{result.headline}</h2>
-                <p className="text-sm text-gray-600 leading-relaxed">{result.explanation}</p>
-              </div>
-            </div>
+            {/* Post-reveal: lead with what they asked for. Recommendations come
+                first so nobody has to scroll past the analysis to find them. */}
+            {productsBlock}
 
-            {/* Concerns */}
-            {result.skin_concerns.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {result.skin_concerns.map((concern) => (
-                  <ConcernTag key={concern} label={concern} />
-                ))}
+            {/* AM/PM routine (general mode, arrives with the reveal) */}
+            {result.regimen && <RegimenSection regimen={result.regimen} />}
+
+            {/* Full analysis kept for the curious, but collapsed by default so
+                it never buries the offer. */}
+            <details className="group rounded-xl border border-gray-200 overflow-hidden">
+              <summary className="flex items-center justify-between cursor-pointer select-none px-4 py-3 text-sm font-semibold text-[var(--color-primary)] list-none marker:hidden [&::-webkit-details-marker]:hidden">
+                <span>See your full skin analysis</span>
+                <svg className="w-4 h-4 shrink-0 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </summary>
+              <div className="px-4 pb-4 pt-1 space-y-5 border-t border-gray-100">
+                {analysisBlock}
               </div>
-            )}
+            </details>
           </>
         )}
-
-        {/* Recommended products — hidden pre-reveal in general mode */}
-        {revealed && (
-          <div className="space-y-2">
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Build Your Set</h3>
-              <span className="text-[11px] text-[var(--color-primary)] font-medium">Add 2+ for best results</span>
-            </div>
-            <div className="space-y-3">
-              {products.map((product, i) => (
-                <ProductCard
-                  key={product.id ?? i}
-                  product={product}
-                  quantity={qtyOf(product)}
-                  onAdd={() => product.id && onCartAdd(product.id)}
-                  onSetQty={(q) => product.id && onCartSet(product.id, q)}
-                  onKnowMore={() => setDetailProduct(product)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* AM/PM routine (general mode, arrives with the reveal) */}
-        {revealed && result.regimen && <RegimenSection regimen={result.regimen} />}
 
         {/* Training-consent receipt: the guest's deletion handle. Only present
             when they ticked the consent checkbox on capture. */}

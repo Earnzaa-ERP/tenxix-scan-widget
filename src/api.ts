@@ -56,6 +56,7 @@ function sanitizeScanResult(raw: unknown): ScanResult {
     recommended_products,
     ...(regimen ? { regimen } : {}),
     ...(report ? { report } : {}),
+    ...(typeof r.scan_ref === 'string' && r.scan_ref ? { scan_ref: r.scan_ref } : {}),
   };
 }
 
@@ -201,6 +202,9 @@ export async function analyzeSkinScan(params: {
   product_name?: string;
   session_id?: string;
   device_type?: string;
+  /** Guest opted in to AI-training use of this scan. Backends that predate
+   *  this field simply ignore it, so it's safe against either backend. */
+  training_consent?: boolean;
 }): Promise<ScanResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);

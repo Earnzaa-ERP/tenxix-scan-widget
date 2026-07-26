@@ -174,6 +174,19 @@ export function ResultScreen({
         {/* AM/PM routine (general mode, arrives with the reveal) */}
         {revealed && result.regimen && <RegimenSection regimen={result.regimen} />}
 
+        {/* Training-consent receipt: the guest's deletion handle. Only present
+            when they ticked the consent checkbox on capture. */}
+        {result.scan_ref && (
+          <p className="text-[11px] text-gray-400 text-center leading-relaxed px-4">
+            Scan ID: <span className="font-mono font-medium text-gray-500">{result.scan_ref}</span>
+            {' '}&middot; To remove your scan from Kira&rsquo;s training data, email{' '}
+            <a href={`mailto:support@kirascan.app?subject=Remove%20scan%20${result.scan_ref}`} className="underline">
+              support@kirascan.app
+            </a>{' '}
+            with this ID.
+          </p>
+        )}
+
         <button onClick={onScanAgain} className="w-full text-center text-gray-400 text-sm underline py-1">
           Scan Again
         </button>

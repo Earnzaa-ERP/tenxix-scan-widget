@@ -100,6 +100,9 @@ export interface ScanResult {
   recommended_products: RecommendedProduct[];
   regimen?: Regimen; // present once the backend returns it; UI falls back without it
   report?: SkinReport; // full app-parity report; UI falls back to headline view without it
+  /** Present only when the guest consented to AI-training use of their scan.
+   *  Their deletion handle: "email support with this ID to remove my scan". */
+  scan_ref?: string;
 }
 
 // 'formulating' = general-mode interstitial: the formulation animation
@@ -147,6 +150,8 @@ export interface AppState {
   configError: string | null;
   photoBase64: string | null;
   sideImagesBase64: { left?: string; right?: string } | null;
+  /** Guest ticked the "use my scan to improve Kira" checkbox on capture. */
+  trainingConsent: boolean;
   result: ScanResult | null;
   cart: Record<string, number>; // productId -> quantity (selected on the result page)
   analyzeError: string | null;
@@ -161,7 +166,7 @@ export type AppAction =
   | { type: 'CONFIG_LOADED'; config: WidgetConfig }
   | { type: 'CONFIG_ERROR'; error: string }
   | { type: 'START_SCAN' }
-  | { type: 'PHOTO_READY'; photoBase64: string; sideImages?: { left?: string; right?: string } }
+  | { type: 'PHOTO_READY'; photoBase64: string; sideImages?: { left?: string; right?: string }; trainingConsent?: boolean }
   | { type: 'ANALYZE_SUCCESS'; result: ScanResult }
   | { type: 'ANALYZE_ERROR'; error: string }
   | { type: 'SCAN_AGAIN' }

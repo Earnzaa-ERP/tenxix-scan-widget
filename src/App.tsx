@@ -34,6 +34,7 @@ const initialState: AppState = {
   configError: null,
   photoBase64: null,
   sideImagesBase64: null,
+  trainingConsent: false,
   result: null,
   cart: {},
   analyzeError: null,
@@ -55,7 +56,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       return state.screen === 'intro' ? { ...state, screen: 'capture' } : state;
     case 'PHOTO_READY':
       return state.screen === 'capture'
-        ? { ...state, screen: 'analyzing', photoBase64: action.photoBase64, sideImagesBase64: action.sideImages ?? null, result: null, analyzeError: null }
+        ? { ...state, screen: 'analyzing', photoBase64: action.photoBase64, sideImagesBase64: action.sideImages ?? null, trainingConsent: action.trainingConsent ?? false, result: null, analyzeError: null }
         : state;
     case 'ANALYZE_SUCCESS':
       return state.screen === 'analyzing' ? { ...state, screen: 'result', result: action.result, cart: {} } : state;
@@ -162,7 +163,7 @@ function MainApp() {
       )}
       {state.screen === 'capture' && (
         <CaptureScreen
-          onPhotoReady={(b64, sides) => dispatch({ type: 'PHOTO_READY', photoBase64: b64, sideImages: sides })}
+          onPhotoReady={(b64, sides, consent) => dispatch({ type: 'PHOTO_READY', photoBase64: b64, sideImages: sides, trainingConsent: consent })}
         />
       )}
       {state.screen === 'analyzing' && state.photoBase64 && state.refCode && (
@@ -173,6 +174,7 @@ function MainApp() {
           productName={state.productName}
           sessionId={state.sessionId}
           deviceType={state.deviceType}
+          trainingConsent={state.trainingConsent}
           onResult={handleResult}
           onError={handleAnalyzeError}
         />

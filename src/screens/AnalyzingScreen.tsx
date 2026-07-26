@@ -10,6 +10,7 @@ interface AnalyzingScreenProps {
   productName: string | null;
   sessionId: string;
   deviceType: string;
+  trainingConsent?: boolean;
   onResult: (result: ScanResult) => void;
   onError: (error: string) => void;
 }
@@ -21,6 +22,7 @@ export function AnalyzingScreen({
   productName,
   sessionId,
   deviceType,
+  trainingConsent,
   onResult,
   onError,
 }: AnalyzingScreenProps) {
@@ -37,6 +39,7 @@ export function AnalyzingScreen({
       product_name: productName ?? undefined,
       session_id: sessionId,
       device_type: deviceType,
+      ...(trainingConsent ? { training_consent: true } : {}),
     })
       .then(onResult)
       .catch((err) => {
@@ -44,7 +47,7 @@ export function AnalyzingScreen({
           err instanceof ApiError ? err.message : 'Something went wrong. Please try again.';
         onError(message);
       });
-  }, [refCode, photoBase64, sideImages, productName, sessionId, deviceType, onResult, onError]);
+  }, [refCode, photoBase64, sideImages, productName, sessionId, deviceType, trainingConsent, onResult, onError]);
 
   return <AnalyzingAnimation photoBase64={photoBase64} />;
 }

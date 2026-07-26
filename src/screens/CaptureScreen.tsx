@@ -6,7 +6,11 @@ import { analyzeBrightness, assessFaceRegion, cropFace } from '../lib/quality';
 import { detectFace, prewarmFaceDetector } from '../lib/faceDetect';
 
 interface CaptureScreenProps {
-  onPhotoReady: (base64: string, sideImages?: { left?: string; right?: string }) => void;
+  onPhotoReady: (
+    base64: string,
+    sideImages?: { left?: string; right?: string },
+    trainingConsent?: boolean,
+  ) => void;
 }
 
 // ?qa shows the measured quality numbers on the preview, to calibrate thresholds.
@@ -35,6 +39,9 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
   const [flashing, setFlashing] = useState(false);
   const [liveError, setLiveError] = useState<string | null>(null);
   const [sides, setSides] = useState<{ left: string | null; right: string | null }>({ left: null, right: null });
+  // Opt-in AI-training consent. Unticked by default (NDPR/GDPR-friendly):
+  // without a tick the photo stays transient exactly as before.
+  const [trainingConsent, setTrainingConsent] = useState(false);
   const capturingRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -182,7 +189,7 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
       const sideImages: { left?: string; right?: string } = {};
       if (sides.left) sideImages.left = await compressPhoto(sides.left);
       if (sides.right) sideImages.right = await compressPhoto(sides.right);
-      onPhotoReady(compressed, sides.left || sides.right ? sideImages : undefined);
+      onPhotoReady(compressed, sides.left || sides.right ? sideImages : undefined, trainingConsent);
     } finally {
       setCompressing(false);
     }
@@ -251,6 +258,32 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Opt-in AI-training consent. Purely additive: unticked keeps the
+              photo transient exactly as before. */}
+          {!tooDark && !noFace && !poorQuality && !validating && (
+            <label className="mx-4 mt-3 flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={trainingConsent}
+                onChange={(e) => setTrainingConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[var(--color-primary)]"
+              />
+              <span className="text-xs text-gray-500 leading-relaxed">
+                Help improve Kira&rsquo;s accuracy for melanin-rich skin — allow anonymous
+                use of my scan for AI training. Optional.{' '}
+                <a
+                  href="https://kirascan.app/privacy/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline text-gray-600"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Learn more
+                </a>
+              </span>
+            </label>
           )}
 
           <div className="flex gap-3 p-4">

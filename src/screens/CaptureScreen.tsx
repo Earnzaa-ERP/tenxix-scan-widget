@@ -261,29 +261,35 @@ export function CaptureScreen({ onPhotoReady }: CaptureScreenProps) {
           )}
 
           {/* Opt-in AI-training consent. Purely additive: unticked keeps the
-              photo transient exactly as before. */}
+              photo transient exactly as before. Copy kept in sync with the
+              app's consent prompt (trainingConsent.ts in the Kira app). */}
           {!tooDark && !noFace && !poorQuality && !validating && (
-            <label className="mx-4 mt-3 flex items-start gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={trainingConsent}
-                onChange={(e) => setTrainingConsent(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[var(--color-primary)]"
-              />
-              <span className="text-xs text-gray-500 leading-relaxed">
-                Help improve Kira&rsquo;s accuracy for melanin-rich skin — allow anonymous
-                use of my scan for AI training. Optional.{' '}
-                <a
-                  href="https://kirascan.app/privacy/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline text-gray-600"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Learn more
-                </a>
-              </span>
-            </label>
+            <div className="mx-4 mt-3 rounded-lg border border-[var(--color-primary)]/20 bg-[var(--color-primary)]/5 px-3 py-2.5">
+              <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={trainingConsent}
+                  onChange={(e) => setTrainingConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-[var(--color-primary)]"
+                />
+                <span className="text-xs text-gray-600 leading-relaxed">
+                  <span className="font-semibold text-[var(--color-primary)]">
+                    Make Kira smarter for melanin-rich skin like ours.
+                  </span>{' '}
+                  Allow anonymous use of my scan to help train Kira&rsquo;s own AI — built by
+                  us, for us. Optional.{' '}
+                  <a
+                    href="https://kirascan.app/privacy/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-gray-500"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Learn more
+                  </a>
+                </span>
+              </label>
+            </div>
           )}
 
           <div className="flex gap-3 p-4">

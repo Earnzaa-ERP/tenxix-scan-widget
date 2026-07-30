@@ -19,6 +19,7 @@ export interface ConfigProduct {
   name: string;
   sku: string | null;
   price: number | null;
+  image_url?: string | null;
   skin_concern_targets: string[];
   redirect_url: string | null;
   full_description: string | null;
@@ -38,6 +39,11 @@ export interface RecommendedProduct {
   price: number | null;
   redirect_url: string | null;
   why_it_matches: string | null;
+  image_url?: string | null;
+  /** 'essential' = auto-added to the cart (the core set the AI insists on);
+   *  'recommended' = optional add-on. Absent on legacy backends → no
+   *  auto-select. Mirrors the app's Shop Essentials model. */
+  importance?: 'essential' | 'recommended' | null;
 }
 
 export interface RegimenStepProduct {

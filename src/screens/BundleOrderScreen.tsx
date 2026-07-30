@@ -133,6 +133,9 @@ export function BundleOrderScreen({
             const qty = p.id ? qtyOf(p.id) : 1;
             return (
               <div key={p.id ?? i} className="flex items-center gap-2 text-sm">
+                <div className="shrink-0 w-10 h-10 rounded-md overflow-hidden bg-white border border-gray-200">
+                  {p.image_url && <img src={p.image_url} alt="" className="w-full h-full object-cover" />}
+                </div>
                 <span className="text-gray-700 flex-1 min-w-0">{p.name}</span>
                 {p.id && (
                   <div className="flex items-center gap-1.5 shrink-0">

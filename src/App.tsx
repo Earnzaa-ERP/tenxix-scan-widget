@@ -44,6 +44,22 @@ const initialState: AppState = {
   deviceType: detectDeviceType(),
 };
 
+// Auto-select the essential products into the cart the moment a scan result
+// arrives — mirrors the app's "Shop Essentials". When the backend marks
+// importance, essentials are pre-added (fallback: all, so the cart is never
+// empty). Legacy backends that send no importance at all → empty cart
+// (manual add, unchanged).
+function defaultCart(result: ScanResult | null): Record<string, number> {
+  if (!result) return {};
+  const recs = result.recommended_products.filter((p) => p.id);
+  if (!recs.some((p) => p.importance != null)) return {};
+  const essentials = recs.filter((p) => p.importance === 'essential');
+  const chosen = essentials.length > 0 ? essentials : recs;
+  const cart: Record<string, number> = {};
+  for (const p of chosen) if (p.id) cart[p.id] = 1;
+  return cart;
+}
+
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case 'CONFIG_LOADING':
@@ -59,7 +75,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         ? { ...state, screen: 'analyzing', photoBase64: action.photoBase64, sideImagesBase64: action.sideImages ?? null, trainingConsent: action.trainingConsent ?? false, result: null, analyzeError: null }
         : state;
     case 'ANALYZE_SUCCESS':
-      return state.screen === 'analyzing' ? { ...state, screen: 'result', result: action.result, cart: {} } : state;
+      return state.screen === 'analyzing' ? { ...state, screen: 'result', result: action.result, cart: defaultCart(action.result) } : state;
     case 'ANALYZE_ERROR':
       return state.screen === 'analyzing' ? { ...state, screen: 'result', analyzeError: action.error } : state;
     case 'SCAN_AGAIN':

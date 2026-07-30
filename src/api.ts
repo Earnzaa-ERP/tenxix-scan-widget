@@ -39,6 +39,9 @@ function sanitizeScanResult(raw: unknown): ScanResult {
           price: typeof p.price === 'number' ? p.price : null,
           redirect_url: typeof p.redirect_url === 'string' ? p.redirect_url : null,
           why_it_matches: typeof p.why_it_matches === 'string' ? p.why_it_matches : null,
+          image_url: typeof p.image_url === 'string' && p.image_url ? p.image_url : null,
+          importance:
+            p.importance === 'essential' || p.importance === 'recommended' ? p.importance : null,
         }))
     : [];
 

@@ -47,6 +47,20 @@ export function ResultScreen({
   onScanAgain,
 }: ResultScreenProps) {
   const [detailProduct, setDetailProduct] = useState<RecommendedProduct | null>(null);
+  // Removing an ESSENTIAL from the cart prompts a warning first (like the app);
+  // optional items are removed silently. `null` = no prompt showing.
+  const [essentialToRemove, setEssentialToRemove] = useState<RecommendedProduct | null>(null);
+
+  // Gate quantity changes: dropping an essential to 0 opens the confirm modal
+  // instead of removing outright. Everything else passes straight through.
+  function handleSetQty(product: RecommendedProduct, qty: number) {
+    if (!product.id) return;
+    if (qty <= 0 && product.importance === 'essential') {
+      setEssentialToRemove(product);
+      return;
+    }
+    onCartSet(product.id, qty);
+  }
 
   // Fire the pixel ViewContent once, when a successful scan result is shown.
   const viewFired = useRef(false);
@@ -145,7 +159,7 @@ export function ResultScreen({
             product={product}
             quantity={qtyOf(product)}
             onAdd={() => product.id && onCartAdd(product.id)}
-            onSetQty={(q) => product.id && onCartSet(product.id, q)}
+            onSetQty={(q) => handleSetQty(product, q)}
             onKnowMore={() => setDetailProduct(product)}
           />
         ))}
@@ -278,6 +292,54 @@ export function ResultScreen({
           onAddToCart={() => detailProduct.id && onCartAdd(detailProduct.id)}
           onClose={() => setDetailProduct(null)}
         />
+      )}
+
+      {/* Essential-removal warning — explains why the product matters before
+          letting them take it out (mirrors the app). */}
+      {essentialToRemove && (
+        <div
+          className="absolute inset-0 z-50 flex items-end justify-center bg-black/50 p-4"
+          onClick={() => setEssentialToRemove(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-white rounded-2xl p-5 space-y-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="inline-block text-[10px] font-bold uppercase tracking-wide text-[var(--color-primary)] bg-[var(--color-accent)]/20 px-2 py-0.5 rounded-full">
+              Essential
+            </span>
+            <div className="space-y-1.5">
+              <h3 className="text-base font-bold text-[var(--color-primary)] leading-snug">
+                Remove {essentialToRemove.name}?
+              </h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                This one is essential to your results
+                {essentialToRemove.why_it_matches ? ` — ${essentialToRemove.why_it_matches}` : '.'} Without it, the rest of your set can&rsquo;t fix the root cause, so your results will be slower and partial.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                onClick={() => setEssentialToRemove(null)}
+                className="w-full py-3 bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white rounded-xl font-semibold text-sm active:scale-[0.98] transition-transform"
+              >
+                Keep it in my set
+              </button>
+              <button
+                onClick={() => {
+                  if (essentialToRemove.id) onCartSet(essentialToRemove.id, 0);
+                  track('EssentialRemoved', {
+                    content_ids: essentialToRemove.id ? [essentialToRemove.id] : [],
+                    content_name: essentialToRemove.name,
+                  });
+                  setEssentialToRemove(null);
+                }}
+                className="w-full py-2.5 text-gray-400 text-sm font-medium active:scale-[0.98] transition-transform"
+              >
+                Remove anyway
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
